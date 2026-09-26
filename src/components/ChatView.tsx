@@ -36,6 +36,7 @@ import {
 import { User, ChatGroup, ChatMessage, Task, UserRole } from '../types';
 import { VChatLogo } from './VChatLogo';
 import { apiFetch } from '../services/clientStorage';
+import { subscribeToCloudMessages, subscribeToCloudChats } from '../services/firebase';
 
 
 interface ChatViewProps {
@@ -138,24 +139,45 @@ export const ChatView: React.FC<ChatViewProps> = ({
     }
   };
 
-  // Initial load and polling
+  // Real-time Cloud Firestore Listeners & Initial Load
   useEffect(() => {
     fetchChats();
+
+    // Subscribe to real-time chat updates across devices
+    const unsubChats = subscribeToCloudChats((cloudChats) => {
+      if (cloudChats && cloudChats.length > 0) {
+        const userChats = cloudChats.filter(c =>
+          c.participants.includes('all') || c.participants.includes(currentUser.id)
+        );
+        setChats(userChats);
+        if (!activeChatId && userChats.length > 0) {
+          setActiveChatId(userChats[0].id);
+        }
+      }
+    });
+
+    return () => {
+      unsubChats();
+    };
   }, [currentUser.id]);
 
   useEffect(() => {
-    if (activeChatId) {
-      fetchMessages(activeChatId);
-    }
-    const interval = setInterval(() => {
-      if (activeChatId) {
-        fetchMessages(activeChatId);
-      }
-      fetchChats();
-    }, 2500);
+    if (!activeChatId) return;
 
-    return () => clearInterval(interval);
+    fetchMessages(activeChatId);
+
+    // Subscribe to instantaneous real-time message stream for active chat
+    const unsubMessages = subscribeToCloudMessages(activeChatId, (cloudMsgs) => {
+      if (cloudMsgs) {
+        setMessages(cloudMsgs);
+      }
+    });
+
+    return () => {
+      unsubMessages();
+    };
   }, [activeChatId, currentUser.id]);
+
 
   // Scroll to bottom when messages update
   useEffect(() => {

@@ -8,6 +8,7 @@ import { EmployeeManagement } from './components/EmployeeManagement';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { User, Task } from './types';
 import { apiFetch } from './services/clientStorage';
+import { subscribeToCloudTasks } from './services/firebase';
 
 import { 
   Building2, 
@@ -66,12 +67,33 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (currentUser) {
-      fetchTasks();
-      const interval = setInterval(fetchTasks, 5000);
-      return () => clearInterval(interval);
-    }
-  }, [currentUser?.id]);
+    if (!currentUser) return;
+
+    fetchTasks();
+
+    // Real-time synchronization of tasks across devices
+    const unsub = subscribeToCloudTasks((cloudTasks) => {
+      if (cloudTasks) {
+        if (currentUser.isAdmin) {
+          setTasks(cloudTasks);
+        } else {
+          setTasks(
+            cloudTasks.filter(
+              t =>
+                t.assignedToId === currentUser.id ||
+                t.assignedToEmail.toLowerCase() === currentUser.email.toLowerCase() ||
+                t.assignedById === currentUser.id
+            )
+          );
+        }
+      }
+    });
+
+    return () => {
+      unsub();
+    };
+  }, [currentUser?.id, currentUser?.isAdmin, currentUser?.email]);
+
 
   const handleLoginSuccess = (user: User) => {
     setCurrentUser(user);

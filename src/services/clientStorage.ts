@@ -1,9 +1,11 @@
 /**
- * Client-Side Storage & Mock Browser API Handler
+ * Client-Side Storage & Firebase Firestore Real-Time Synchronization Engine
  * 
- * Provides a 100% in-browser backend using localStorage.
- * Intercepts all '/api/*' fetch requests so the application operates seamlessly
- * on static hosting (such as Vercel) without returning HTTP 405 Method Not Allowed.
+ * Provides unified data handling that operates seamlessly across:
+ * - Real-time Cloud Storage via Google Cloud Firestore
+ * - Persistent browser localStorage fallback for offline support
+ * - Zero HTTP 405 Method Not Allowed errors on static hosts like Vercel
+ * - Instant multi-device sync across laptops, Android, and iOS mobile phones
  */
 
 import {
@@ -16,6 +18,29 @@ import {
   ChatMessage,
   UserRole
 } from '../types';
+import {
+  testFirestoreConnection,
+  getCloudUsers,
+  getCloudUserByEmail,
+  saveCloudUser,
+  getCloudAllowedEmployees,
+  saveCloudAllowedEmployee,
+  removeCloudAllowedEmployee,
+  getCloudTasks,
+  saveCloudTask,
+  updateCloudTask,
+  deleteCloudTask,
+  getCloudChats,
+  saveCloudChat,
+  getCloudMessages,
+  saveCloudMessage,
+  saveCloudAuthLog,
+  getCloudAuthLogs,
+  seedCloudDefaults,
+  subscribeToCloudTasks,
+  subscribeToCloudChats,
+  subscribeToCloudAllowedEmployees
+} from './firebase';
 
 export interface StoredUser extends User {
   password?: string;
@@ -34,7 +59,7 @@ export interface ClientDatabase {
 const STORAGE_KEY = 'vchat_client_db_v2';
 
 // Standard Predefined Statutory Task Templates for Varma & Varma CA Practice
-const DEFAULT_PREDEFINED_TASKS: PredefinedTaskTemplate[] = [
+export const DEFAULT_PREDEFINED_TASKS: PredefinedTaskTemplate[] = [
   {
     id: 'pt-1',
     title: 'GSTR-3B Monthly Return Filing',
@@ -155,7 +180,7 @@ const DEFAULT_PREDEFINED_TASKS: PredefinedTaskTemplate[] = [
 ];
 
 // Initial Whitelisted Employees allowed for registration
-const DEFAULT_ALLOWED_EMPLOYEES: AllowedEmployee[] = [
+export const DEFAULT_ALLOWED_EMPLOYEES: AllowedEmployee[] = [
   {
     email: 'rohit.manager@varmavarma.com',
     name: 'Rohit Kulkarni',
@@ -206,7 +231,7 @@ const DEFAULT_ALLOWED_EMPLOYEES: AllowedEmployee[] = [
   }
 ];
 
-const DEFAULT_CHATS: ChatGroup[] = [
+export const DEFAULT_CHATS: ChatGroup[] = [
   {
     id: 'chat-branch-general',
     name: 'Varma & Varma - Mumbai Branch HQ',
@@ -225,7 +250,7 @@ const DEFAULT_CHATS: ChatGroup[] = [
   }
 ];
 
-const DEFAULT_MESSAGES: ChatMessage[] = [
+export const DEFAULT_MESSAGES: ChatMessage[] = [
   {
     id: 'msg-seed-1',
     chatId: 'chat-branch-general',
@@ -271,7 +296,6 @@ export function getClientDb(): ClientDatabase {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && Array.isArray(parsed.users)) {
-        // Ensure defaults are present
         if (!parsed.predefinedTasks || parsed.predefinedTasks.length === 0) {
           parsed.predefinedTasks = DEFAULT_PREDEFINED_TASKS;
         }
@@ -297,7 +321,6 @@ export function getClientDb(): ClientDatabase {
     console.warn('[clientDb] Failed to read localStorage, creating initial db:', err);
   }
 
-  // Create clean initial database
   const initialDb: ClientDatabase = {
     users: [],
     allowedEmployees: DEFAULT_ALLOWED_EMPLOYEES,
@@ -460,7 +483,7 @@ function createSampleCaTasks(user: { id: string; name: string }): Task[] {
 }
 
 /**
- * Dispatches an in-browser request to the client database handlers.
+ * Dispatches an in-browser request to the client and Firebase cloud database handlers.
  * Always returns a standard Response object with JSON headers.
  */
 export async function handleClientApiRequest(
@@ -495,7 +518,7 @@ export async function handleClientApiRequest(
       status,
       headers: {
         'Content-Type': 'application/json',
-        'X-Client-Storage': 'true'
+        'X-Storage-Mode': 'Firebase-Firestore-Realtime'
       }
     });
   };
@@ -504,7 +527,7 @@ export async function handleClientApiRequest(
   if (path === '/api/health') {
     return jsonResponse({
       status: 'ok',
-      mode: 'client-localStorage',
+      mode: 'Firebase-Firestore-Realtime',
       firm: 'Varma & Varma Mumbai Branch',
       usersCount: db.users.length,
       tasksCount: db.tasks.length,
@@ -514,6 +537,15 @@ export async function handleClientApiRequest(
 
   // 2. Auth status
   if (path === '/api/auth/status') {
+    // Try to sync with cloud users
+    try {
+      const cloudUsers = await getCloudUsers();
+      if (cloudUsers.length > 0) {
+        db.users = cloudUsers;
+        saveClientDb(db);
+      }
+    } catch {}
+
     const totalUsers = db.users.length;
     const hasAdmin = db.users.some(u => u.isAdmin);
     const isFirstTimeSetup = totalUsers === 0 || !hasAdmin;
@@ -537,7 +569,7 @@ export async function handleClientApiRequest(
     });
   }
 
-  // 4. Sign up (Supports First-Time Admin & Whitelisted Employees)
+  // 4. Sign up (Supports First-Time Admin & Whitelisted Employees with Cloud Sync)
   if (path === '/api/auth/signup' && method === 'POST') {
     const { name, email, password, phone, role } = body || {};
 
@@ -546,28 +578,45 @@ export async function handleClientApiRequest(
     }
 
     const cleanEmail = String(email).trim().toLowerCase();
-    const existing = db.users.find(u => u.email.toLowerCase() === cleanEmail);
-    if (existing) {
+
+    // Check Cloud & Local for existing user
+    let existingUser = db.users.find(u => u.email.toLowerCase() === cleanEmail);
+    if (!existingUser) {
+      existingUser = await getCloudUserByEmail(cleanEmail);
+    }
+
+    if (existingUser) {
       return jsonResponse({ error: 'An account with this email already exists. Please log in.' }, 400);
+    }
+
+    // Refresh cloud users & allowed list
+    const cloudUsers = await getCloudUsers();
+    if (cloudUsers.length > 0) {
+      db.users = cloudUsers;
+    }
+    const cloudAllowed = await getCloudAllowedEmployees();
+    if (cloudAllowed.length > 0) {
+      db.allowedEmployees = cloudAllowed;
     }
 
     const hasAdmin = db.users.some(u => u.isAdmin);
     const isFirstUser = db.users.length === 0 || !hasAdmin;
 
-    // Strict requirement:
-    // If not first admin, ensure email is on admin's allowed list
+    // Verify employee whitelist if not first admin
     if (!isFirstUser) {
       const allowed = db.allowedEmployees.find(e => e.email.toLowerCase() === cleanEmail);
       if (!allowed) {
-        db.authLogs.unshift({
+        const logItem: AuthLog = {
           id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
           email: cleanEmail,
           event: 'SIGNUP_BLOCKED_NOT_WHITELISTED',
           ip: 'Client Browser',
           timestamp: new Date().toISOString(),
           details: `Attempted signup blocked: Email ${cleanEmail} is not authorized by Admin.`
-        });
+        };
+        db.authLogs.unshift(logItem);
         saveClientDb(db);
+        saveCloudAuthLog(logItem).catch(() => {});
 
         return jsonResponse({
           error: 'Access Denied: Only employees whose email IDs have been registered by Varma & Varma Admin can sign up. Please contact branch administration.'
@@ -603,13 +652,16 @@ export async function handleClientApiRequest(
 
     db.users.push(newUser);
 
+    // Save to Cloud Firestore
+    await saveCloudUser(newUser);
+
     // Update allowed status if matching
     db.allowedEmployees = db.allowedEmployees.map(e =>
       e.email.toLowerCase() === cleanEmail ? { ...e, status: 'active' } : e
     );
 
     // Log auth event
-    db.authLogs.unshift({
+    const authLogItem: AuthLog = {
       id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
       userId: newUser.id,
       email: cleanEmail,
@@ -617,13 +669,16 @@ export async function handleClientApiRequest(
       role: userRole,
       ip: 'Client Browser',
       timestamp: new Date().toISOString(),
-      details: `${isFirstUser ? 'Primary Admin/Partner' : 'Employee (' + userRole + ')'} successfully registered in client database.`
-    });
+      details: `${isFirstUser ? 'Primary Admin/Partner' : 'Employee (' + userRole + ')'} successfully registered in Firestore cloud.`
+    };
+    db.authLogs.unshift(authLogItem);
+    saveCloudAuthLog(authLogItem).catch(() => {});
 
     // Auto-add to branch general chat
     db.chats.forEach(chat => {
       if (chat.participants.includes('all') && !chat.participants.includes(newUser.id)) {
         chat.participants.push(newUser.id);
+        saveCloudChat(chat).catch(() => {});
       }
     });
 
@@ -636,7 +691,7 @@ export async function handleClientApiRequest(
     }, 201);
   }
 
-  // 5. Login
+  // 5. Login (Checks Cloud Firestore & Local)
   if (path === '/api/auth/login' && method === 'POST') {
     const { email, password } = body || {};
     if (!email || !password) {
@@ -644,23 +699,39 @@ export async function handleClientApiRequest(
     }
 
     const cleanEmail = String(email).trim().toLowerCase();
-    const user = db.users.find(u => u.email.toLowerCase() === cleanEmail);
+
+    // Check local db first
+    let user = db.users.find(u => u.email.toLowerCase() === cleanEmail);
+
+    // If not found in local db, check Cloud Firestore (e.g., user registered on another device)
+    if (!user) {
+      const cloudUser = await getCloudUserByEmail(cleanEmail);
+      if (cloudUser) {
+        user = cloudUser;
+        db.users.push(cloudUser);
+        saveClientDb(db);
+      }
+    }
 
     if (!user || user.password !== String(password)) {
-      db.authLogs.unshift({
+      const failedLog: AuthLog = {
         id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
         email: cleanEmail,
         event: 'LOGIN_FAILED',
         ip: 'Client Browser',
         timestamp: new Date().toISOString(),
         details: 'Invalid password or unknown email ID'
-      });
+      };
+      db.authLogs.unshift(failedLog);
       saveClientDb(db);
+      saveCloudAuthLog(failedLog).catch(() => {});
       return jsonResponse({ error: 'Invalid email or password' }, 401);
     }
 
     user.lastLoginAt = new Date().toISOString();
-    db.authLogs.unshift({
+    await saveCloudUser(user);
+
+    const successLog: AuthLog = {
       id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
       userId: user.id,
       email: cleanEmail,
@@ -669,9 +740,11 @@ export async function handleClientApiRequest(
       ip: 'Client Browser',
       timestamp: new Date().toISOString(),
       details: `User ${user.name} logged in.`
-    });
-
+    };
+    db.authLogs.unshift(successLog);
     saveClientDb(db);
+    saveCloudAuthLog(successLog).catch(() => {});
+
     const { password: _, ...safeUser } = user;
     return jsonResponse({ message: 'Login successful', user: safeUser }, 200);
   }
@@ -681,24 +754,33 @@ export async function handleClientApiRequest(
     return jsonResponse({ tasks: db.predefinedTasks });
   }
 
-  // 7. Seed Sample CA Tasks
+  // 7. Seed Sample CA Tasks (Syncs to Cloud Firestore)
   if ((path === '/api/tasks/seed-ca-samples' || path === '/api/admin/seed-sample-tasks') && method === 'POST') {
     const currentUser = db.users.find(u => u.id === userId) || { id: 'admin', name: 'Branch Admin' };
     const sampleTasks = createSampleCaTasks(currentUser);
 
-    sampleTasks.forEach(task => {
+    for (const task of sampleTasks) {
       if (!db.tasks.some(t => t.title === task.title && t.clientName === task.clientName)) {
         db.tasks.unshift(task);
+        await saveCloudTask(task);
       }
-    });
+    }
 
     saveClientDb(db);
     return jsonResponse({ message: 'Sample CA tasks loaded successfully', count: db.tasks.length });
   }
 
-  // 8. Tasks (GET, POST)
+  // 8. Tasks (GET, POST with Cloud Firestore Sync)
   if (path === '/api/tasks') {
     if (method === 'GET') {
+      try {
+        const cloudTasks = await getCloudTasks();
+        if (cloudTasks.length > 0) {
+          db.tasks = cloudTasks;
+          saveClientDb(db);
+        }
+      } catch {}
+
       const currentUser = db.users.find(u => u.id === userId);
       let userTasks = db.tasks;
       if (currentUser && !currentUser.isAdmin) {
@@ -745,8 +827,9 @@ export async function handleClientApiRequest(
       };
 
       db.tasks.unshift(newTask);
+      await saveCloudTask(newTask);
 
-      // Automated branch general group chat alert
+      // Automated branch general group chat alert synced to cloud
       const branchChat = db.chats.find(c => c.id === 'chat-branch-general');
       if (branchChat) {
         const alertMsg: ChatMessage = {
@@ -767,12 +850,15 @@ export async function handleClientApiRequest(
           }
         };
         db.messages.push(alertMsg);
+        await saveCloudMessage(alertMsg);
+
         branchChat.lastMessage = {
           content: alertMsg.content,
           timestamp: alertMsg.timestamp,
           senderName: currentUser.name,
           type: 'task_alert'
         };
+        await saveCloudChat(branchChat);
       }
 
       saveClientDb(db);
@@ -795,6 +881,7 @@ export async function handleClientApiRequest(
       }
     }
     task.updatedAt = new Date().toISOString();
+    await updateCloudTask(taskId, { status: task.status, updatedAt: task.updatedAt, completedAt: task.completedAt });
     saveClientDb(db);
     return jsonResponse({ message: 'Task status updated', task });
   }
@@ -813,6 +900,7 @@ export async function handleClientApiRequest(
         updatedAt: new Date().toISOString()
       };
       db.tasks[taskIndex] = updated;
+      await updateCloudTask(taskId, updated);
       saveClientDb(db);
       return jsonResponse({ message: 'Task updated successfully', task: updated });
     }
@@ -820,23 +908,31 @@ export async function handleClientApiRequest(
     if (method === 'DELETE') {
       if (taskIndex === -1) return jsonResponse({ error: 'Task not found' }, 404);
       db.tasks.splice(taskIndex, 1);
+      await deleteCloudTask(taskId);
       saveClientDb(db);
       return jsonResponse({ message: 'Task deleted successfully' });
     }
   }
 
-  // 11. Chats (GET, POST)
+  // 11. Chats (GET, POST with Cloud Sync)
   if (path === '/api/chats' || path === '/api/chats/direct') {
     if (method === 'GET') {
+      try {
+        const cloudChats = await getCloudChats();
+        if (cloudChats.length > 0) {
+          db.chats = cloudChats;
+          saveClientDb(db);
+        }
+      } catch {}
+
       const userChats = db.chats.filter(c =>
         c.participants.includes('all') || c.participants.includes(userId)
       );
 
-      // Enhance chat participant details
       const enhanced = userChats.map(c => {
         if (c.type === 'direct') {
           const otherId = c.participants.find(p => p !== userId) || '';
-          const otherUser = db.users.find(u => u.id === otherId);
+          const otherUser = db.users.find(u => u.id === otherId || u.email === otherId);
           const otherAllowed = db.allowedEmployees.find(e => e.email === otherId || e.name === otherId);
           return {
             ...c,
@@ -868,7 +964,6 @@ export async function handleClientApiRequest(
     if (method === 'POST') {
       const { name, type, participants, description, recipientId, recipientEmail } = body || {};
 
-      // Handle 1-on-1 direct chat
       if (type === 'direct' || recipientId || recipientEmail) {
         const targetId = recipientId || recipientEmail;
         const existingDirect = db.chats.find(
@@ -903,6 +998,7 @@ export async function handleClientApiRequest(
         };
 
         db.chats.unshift(newDirectChat);
+        await saveCloudChat(newDirectChat);
         saveClientDb(db);
         return jsonResponse({ chat: newDirectChat });
       }
@@ -926,17 +1022,33 @@ export async function handleClientApiRequest(
       };
 
       db.chats.unshift(newGroup);
+      await saveCloudChat(newGroup);
       saveClientDb(db);
       return jsonResponse({ chat: newGroup });
     }
   }
 
-  // 12. Messages for chat: /api/chats/:id/messages
+  // 12. Messages for chat: /api/chats/:id/messages (Cloud Real-Time Sync)
   const chatMessagesMatch = path.match(/^\/api\/chats\/([^/]+)\/messages$/);
   if (chatMessagesMatch) {
     const chatId = chatMessagesMatch[1];
 
     if (method === 'GET') {
+      try {
+        const cloudMsgs = await getCloudMessages(chatId);
+        if (cloudMsgs.length > 0) {
+          // Merge with local messages
+          const existingIds = new Set(db.messages.map(m => m.id));
+          cloudMsgs.forEach(m => {
+            if (!existingIds.has(m.id)) {
+              db.messages.push(m);
+            }
+          });
+          saveClientDb(db);
+          return jsonResponse({ messages: cloudMsgs });
+        }
+      } catch {}
+
       const messages = db.messages.filter(m => m.chatId === chatId);
       return jsonResponse({ messages });
     }
@@ -967,6 +1079,7 @@ export async function handleClientApiRequest(
       };
 
       db.messages.push(newMsg);
+      await saveCloudMessage(newMsg);
 
       // Update chat's lastMessage
       const chat = db.chats.find(c => c.id === chatId);
@@ -977,6 +1090,7 @@ export async function handleClientApiRequest(
           senderName: sender.name,
           type: newMsg.type
         };
+        await saveCloudChat(chat);
       }
 
       saveClientDb(db);
@@ -984,8 +1098,20 @@ export async function handleClientApiRequest(
     }
   }
 
-  // 13. Colleagues
+  // 13. Colleagues (Cross-device cloud list)
   if (path === '/api/colleagues') {
+    try {
+      const cloudUsers = await getCloudUsers();
+      if (cloudUsers.length > 0) {
+        db.users = cloudUsers;
+      }
+      const cloudAllowed = await getCloudAllowedEmployees();
+      if (cloudAllowed.length > 0) {
+        db.allowedEmployees = cloudAllowed;
+      }
+      saveClientDb(db);
+    } catch {}
+
     const registeredOthers = db.users
       .filter(u => u.id !== userId)
       .map(({ password: _, ...safe }) => ({
@@ -1014,9 +1140,25 @@ export async function handleClientApiRequest(
     return jsonResponse({ colleagues: [...registeredOthers, ...uninvitedEmployees] });
   }
 
-  // 14. Admin Employees (GET, POST)
+  // 14. Admin Employees (GET, POST with Cloud Firestore Sync)
   if (path === '/api/admin/employees') {
     if (method === 'GET') {
+      try {
+        const cloudAllowed = await getCloudAllowedEmployees();
+        if (cloudAllowed.length > 0) {
+          db.allowedEmployees = cloudAllowed;
+        }
+        const cloudUsers = await getCloudUsers();
+        if (cloudUsers.length > 0) {
+          db.users = cloudUsers;
+        }
+        const cloudLogs = await getCloudAuthLogs();
+        if (cloudLogs.length > 0) {
+          db.authLogs = cloudLogs;
+        }
+        saveClientDb(db);
+      } catch {}
+
       const registered = db.users.map(({ password: _, ...safe }) => safe);
       return jsonResponse({
         allowedEmployees: db.allowedEmployees,
@@ -1048,15 +1190,19 @@ export async function handleClientApiRequest(
       };
 
       db.allowedEmployees.push(newAllowed);
-      db.authLogs.unshift({
+      await saveCloudAllowedEmployee(newAllowed);
+
+      const logItem: AuthLog = {
         id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
         email: cleanEmail,
         event: 'SIGNUP_EMPLOYEE',
         role: newAllowed.role,
         ip: 'Client Browser',
         timestamp: new Date().toISOString(),
-        details: `Employee ${newAllowed.name} (${newAllowed.email}) whitelisted by ${adminUser.name}.`
-      });
+        details: `Employee ${newAllowed.name} (${newAllowed.email}) whitelisted by ${adminUser.name} and synced to Firestore.`
+      };
+      db.authLogs.unshift(logItem);
+      await saveCloudAuthLog(logItem);
 
       saveClientDb(db);
       return jsonResponse({ message: 'Employee added successfully', employee: newAllowed }, 201);
@@ -1068,12 +1214,25 @@ export async function handleClientApiRequest(
   if (delEmpMatch && method === 'DELETE') {
     const emailToDel = decodeURIComponent(delEmpMatch[1]).toLowerCase();
     db.allowedEmployees = db.allowedEmployees.filter(e => e.email.toLowerCase() !== emailToDel);
+    await removeCloudAllowedEmployee(emailToDel);
     saveClientDb(db);
     return jsonResponse({ message: 'Employee removed successfully' });
   }
 
   // 16. Dashboard Analytics
   if (path === '/api/dashboard/analytics') {
+    try {
+      const cloudTasks = await getCloudTasks();
+      if (cloudTasks.length > 0) {
+        db.tasks = cloudTasks;
+      }
+      const cloudLogs = await getCloudAuthLogs();
+      if (cloudLogs.length > 0) {
+        db.authLogs = cloudLogs;
+      }
+      saveClientDb(db);
+    } catch {}
+
     const total = db.tasks.length;
     const pending = db.tasks.filter(t => t.status === 'Pending').length;
     const inProgress = db.tasks.filter(t => t.status === 'In Progress').length;
@@ -1084,7 +1243,6 @@ export async function handleClientApiRequest(
     const todayStr = new Date().toISOString().split('T')[0];
     const overdue = db.tasks.filter(t => t.status !== 'Completed' && t.dueDate < todayStr).length;
 
-    // Categories breakdown
     const catMap: Record<string, { total: number; completed: number; pending: number }> = {};
     db.tasks.forEach(t => {
       const cat = t.category || 'General';
@@ -1102,7 +1260,6 @@ export async function handleClientApiRequest(
       rate: stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 100
     }));
 
-    // Team workload
     const memberMap: Record<string, { name: string; role: string; pending: number; completed: number }> = {};
     db.tasks.forEach(t => {
       const key = t.assignedToEmail || t.assignedToName || 'Unassigned';
@@ -1154,9 +1311,8 @@ export async function handleClientApiRequest(
 
 /**
  * Safe client-side API fetch function.
- * Dispatches directly to in-browser localStorage database for '/api/*' paths,
+ * Dispatches directly to in-browser & Firebase Cloud Firestore database for '/api/*' paths,
  * or forwards to window.fetch for external URLs.
- * Never throws "Cannot set property fetch of #<Window> which has only a getter".
  */
 export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   let urlString = '';
@@ -1168,7 +1324,6 @@ export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Pr
     urlString = (input as Request).url;
   }
 
-  // Handle all client-side API routes
   if (urlString.startsWith('/api/') || urlString.includes('/api/')) {
     try {
       return await handleClientApiRequest(urlString, init);
@@ -1184,7 +1339,6 @@ export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Pr
     }
   }
 
-  // Fallback to native fetch for non-API resources
   if (typeof window !== 'undefined' && typeof window.fetch === 'function') {
     return window.fetch(input, init);
   }
@@ -1192,31 +1346,59 @@ export async function apiFetch(input: RequestInfo | URL, init?: RequestInit): Pr
 }
 
 /**
- * Initializes the client-side database in localStorage.
- * Safely attempts to patch global fetch without throwing if window.fetch has only a getter.
+ * Initializes the client-side database and connects to Firebase Firestore.
  */
 export function initClientApi(): void {
   if (typeof window === 'undefined') return;
 
-  // Prevent multiple bindings
   if ((window as any).__vchat_client_api_installed) {
     return;
   }
   (window as any).__vchat_client_api_installed = true;
 
-  // Ensure DB initialized in localStorage
+  // Initialize DB in localStorage
   try {
     getClientDb();
   } catch (e) {
     console.warn('[clientDb] Init error:', e);
   }
 
+  // Test Firestore connection & Seed defaults to Cloud
+  testFirestoreConnection().then(() => {
+    seedCloudDefaults(
+      DEFAULT_ALLOWED_EMPLOYEES,
+      DEFAULT_PREDEFINED_TASKS,
+      DEFAULT_CHATS,
+      DEFAULT_MESSAGES
+    ).catch(e => console.warn('[Firestore] Seed notice:', e));
+
+    // Subscribe to cloud updates to keep local db in sync across devices
+    subscribeToCloudTasks((tasks) => {
+      const db = getClientDb();
+      db.tasks = tasks;
+      saveClientDb(db);
+    });
+
+    subscribeToCloudChats((chats) => {
+      const db = getClientDb();
+      db.chats = chats;
+      saveClientDb(db);
+    });
+
+    subscribeToCloudAllowedEmployees((employees) => {
+      const db = getClientDb();
+      db.allowedEmployees = employees;
+      saveClientDb(db);
+    });
+  }).catch(err => {
+    console.warn('[Firestore] Connection setup error:', err);
+  });
+
   // Safely attempt to patch window.fetch without throwing if fetch is a getter-only property
   try {
     const descriptor = Object.getOwnPropertyDescriptor(window, 'fetch') || 
                        Object.getOwnPropertyDescriptor(Window.prototype, 'fetch');
     
-    // Only attempt to override if writable or configurable
     if (!descriptor || descriptor.writable || descriptor.configurable || descriptor.set) {
       try {
         Object.defineProperty(window, 'fetch', {
@@ -1224,14 +1406,9 @@ export function initClientApi(): void {
           writable: true,
           configurable: true
         });
-      } catch {
-        // Silently skip if browser security policy forbids redefinition
-      }
+      } catch {}
     }
-  } catch (err) {
-    // Suppress any errors completely
-  }
+  } catch {}
 
-  console.log('[V-Chat] In-browser client API initialized with localStorage persistence.');
+  console.log('[V-Chat] Firebase Firestore real-time cloud sync engine initialized.');
 }
-

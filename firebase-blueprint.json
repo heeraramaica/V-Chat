@@ -1,0 +1,177 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Registered CA firm staff or admin user profile",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "password": { "type": "string" },
+        "role": { "type": "string", "enum": ["Partner", "Manager", "Accountant", "Paid Assistant", "Articles", "Admin"] },
+        "phone": { "type": "string" },
+        "avatar": { "type": "string" },
+        "isAdmin": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["active", "invited"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "lastLoginAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "email", "role", "isAdmin", "status", "createdAt"]
+    },
+    "AllowedEmployee": {
+      "title": "AllowedEmployee",
+      "description": "Authorized staff member whitelist for self-registration",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["Partner", "Manager", "Accountant", "Paid Assistant", "Articles", "Admin"] },
+        "phone": { "type": "string" },
+        "addedBy": { "type": "string" },
+        "addedAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string" }
+      },
+      "required": ["email", "name", "role", "addedBy", "addedAt"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "CA firm audit, tax, statutory compliance or client assignment task",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "category": { "type": "string" },
+        "clientName": { "type": "string" },
+        "clientPAN_GSTIN": { "type": "string" },
+        "assignedToId": { "type": "string" },
+        "assignedToName": { "type": "string" },
+        "assignedToEmail": { "type": "string" },
+        "assignedToRole": { "type": "string" },
+        "assignedById": { "type": "string" },
+        "assignedByName": { "type": "string" },
+        "dueDate": { "type": "string" },
+        "priority": { "type": "string", "enum": ["Urgent", "High", "Medium", "Low"] },
+        "status": { "type": "string", "enum": ["Pending", "In Progress", "In Review", "Completed"] },
+        "instructions": { "type": "string" },
+        "checklist": { "type": "array" },
+        "reminders": { "type": "array" },
+        "attachments": { "type": "array" },
+        "comments": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "completedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "clientName", "priority", "status", "dueDate", "createdAt", "updatedAt"]
+    },
+    "ChatGroup": {
+      "title": "ChatGroup",
+      "description": "Team group chat or 1-on-1 direct messaging channel",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["group", "direct", "task"] },
+        "participants": { "type": "array" },
+        "participantDetails": { "type": "array" },
+        "otherParticipant": { "type": "object" },
+        "description": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "lastMessage": { "type": "object" },
+        "unreadCount": { "type": "number" }
+      },
+      "required": ["id", "name", "type", "participants", "createdAt"]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Individual message in branch chat or direct staff message",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "chatId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "senderRole": { "type": "string" },
+        "content": { "type": "string" },
+        "type": { "type": "string", "enum": ["text", "image", "document", "task_alert", "voice"] },
+        "mediaUrl": { "type": "string" },
+        "mediaName": { "type": "string" },
+        "mediaSize": { "type": "number" },
+        "mediaType": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "readBy": { "type": "array" },
+        "taskRef": { "type": "object" }
+      },
+      "required": ["id", "chatId", "senderId", "senderName", "timestamp", "type"]
+    },
+    "AuthLog": {
+      "title": "AuthLog",
+      "description": "Security and access audit log for user operations",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "event": { "type": "string" },
+        "role": { "type": "string" },
+        "ip": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "details": { "type": "string" }
+      },
+      "required": ["id", "email", "event", "timestamp"]
+    },
+    "PredefinedTask": {
+      "title": "PredefinedTask",
+      "description": "Statutory template for CA assignment procedures",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "category": { "type": "string" },
+        "defaultPriority": { "type": "string" },
+        "suggestedChecklist": { "type": "array" },
+        "standardInstructions": { "type": "string" },
+        "statutoryDeadlineInfo": { "type": "string" }
+      },
+      "required": ["id", "title", "category", "defaultPriority"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Staff and partner user profiles"
+    },
+    "/allowedEmployees/{emailDocId}": {
+      "schema": "AllowedEmployee",
+      "description": "Whitelisted employee emails authorized by branch admin"
+    },
+    "/tasks/{taskId}": {
+      "schema": "Task",
+      "description": "Audit, tax, and compliance tasks allocated across staff"
+    },
+    "/chats/{chatId}": {
+      "schema": "ChatGroup",
+      "description": "Branch HQ group chat and direct communication channels"
+    },
+    "/messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Real-time chat messages, file attachments, and task alerts"
+    },
+    "/authLogs/{logId}": {
+      "schema": "AuthLog",
+      "description": "Security audit records and login activities"
+    },
+    "/predefinedTasks/{templateId}": {
+      "schema": "PredefinedTask",
+      "description": "Standard CA checklist and procedure templates"
+    },
+    "/system/{systemId}": {
+      "description": "System connectivity and runtime status verification"
+    },
+    "/test/{testId}": {
+      "description": "Firestore diagnostic tests"
+    }
+  }
+}
