@@ -98,10 +98,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const fetchChats = async () => {
     try {
       const res = await fetch('/api/chats', {
-        headers: { 'x-user-id': currentUser.id }
+        headers: {
+          'x-user-id': currentUser.id,
+          'Accept': 'application/json'
+        }
       });
       if (res.ok) {
-        const data = await res.json();
+        const text = await res.text();
+        const data = text ? JSON.parse(text) : {};
         setChats(data.chats || []);
         if (!activeChatId && data.chats?.length > 0) {
           setActiveChatId(data.chats[0].id);
@@ -117,10 +121,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
     if (!chatId) return;
     try {
       const res = await fetch(`/api/chats/${chatId}/messages`, {
-        headers: { 'x-user-id': currentUser.id }
+        headers: {
+          'x-user-id': currentUser.id,
+          'Accept': 'application/json'
+        }
       });
       if (res.ok) {
-        const data = await res.json();
+        const text = await res.text();
+        const data = text ? JSON.parse(text) : {};
         setMessages(data.messages || []);
       }
     } catch (err) {
@@ -157,10 +165,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
     setIsLoadingColleagues(true);
     try {
       const res = await fetch('/api/colleagues', {
-        headers: { 'x-user-id': currentUser.id }
+        headers: {
+          'x-user-id': currentUser.id,
+          'Accept': 'application/json'
+        }
       });
       if (res.ok) {
-        const data = await res.json();
+        const text = await res.text();
+        const data = text ? JSON.parse(text) : {};
         setColleagues(data.colleagues || []);
       }
     } catch (err) {
@@ -179,22 +191,26 @@ export const ChatView: React.FC<ChatViewProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
           'x-user-id': currentUser.id
         },
         body: JSON.stringify({ recipientId, recipientEmail })
       });
 
       if (res.ok) {
-        const data = await res.json();
+        const text = await res.text();
+        const data = text ? JSON.parse(text) : {};
         const targetChat = data.chat;
-        setChats(prev => {
-          const exists = prev.some(c => c.id === targetChat.id);
-          return exists ? prev.map(c => c.id === targetChat.id ? targetChat : c) : [targetChat, ...prev];
-        });
-        setActiveChatId(targetChat.id);
-        setShowDirectChatModal(false);
-        setShowGroupInfoModal(false);
-        setFilterType('all');
+        if (targetChat) {
+          setChats(prev => {
+            const exists = prev.some(c => c.id === targetChat.id);
+            return exists ? prev.map(c => c.id === targetChat.id ? targetChat : c) : [targetChat, ...prev];
+          });
+          setActiveChatId(targetChat.id);
+          setShowDirectChatModal(false);
+          setShowGroupInfoModal(false);
+          setFilterType('all');
+        }
       }
     } catch (err) {
       console.error('Failed to create or open direct chat', err);
@@ -215,10 +231,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const loadEmployees = async () => {
     try {
       const res = await fetch('/api/admin/employees', {
-        headers: { 'x-user-id': currentUser.id }
+        headers: {
+          'x-user-id': currentUser.id,
+          'Accept': 'application/json'
+        }
       });
       if (res.ok) {
-        const data = await res.json();
+        const text = await res.text();
+        const data = text ? JSON.parse(text) : {};
         setAllEmployees(data.registeredUsers || []);
       }
     } catch {
@@ -235,6 +255,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
           'x-user-id': currentUser.id
         },
         body: JSON.stringify({
@@ -246,16 +267,20 @@ export const ChatView: React.FC<ChatViewProps> = ({
       });
 
       if (res.ok) {
-        const data = await res.json();
-        setChats(prev => [data.chat, ...prev]);
-        setActiveChatId(data.chat.id);
+        const text = await res.text();
+        const data = text ? JSON.parse(text) : {};
+        if (data.chat) {
+          setChats(prev => [data.chat, ...prev]);
+          setActiveChatId(data.chat.id);
+        }
         setShowNewGroupModal(false);
         setNewGroupName('');
         setNewGroupDesc('');
-        setSelectedParticipants([]);
+        setSelectedParticipants([currentUser.id]);
+        fetchChats();
       }
     } catch (err) {
-      console.error('Error creating group', err);
+      console.error('Failed to create group', err);
     }
   };
 
@@ -300,7 +325,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
       if (attachmentPreview) {
         const upRes = await fetch('/api/upload', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
           body: JSON.stringify({
             fileName: attachmentPreview.fileName,
             fileType: attachmentPreview.fileType,
@@ -309,7 +337,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
         });
 
         if (upRes.ok) {
-          const upData = await upRes.json();
+          const upText = await upRes.text();
+          const upData = upText ? JSON.parse(upText) : {};
           mediaUrl = upData.url;
           mediaName = upData.name;
           mediaSize = upData.size;
@@ -321,6 +350,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
           'x-user-id': currentUser.id
         },
         body: JSON.stringify({
@@ -334,8 +364,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
       });
 
       if (res.ok) {
-        const data = await res.json();
-        setMessages(prev => [...prev, data.message]);
+        const text = await res.text();
+        const data = text ? JSON.parse(text) : {};
+        if (data.message) {
+          setMessages(prev => [...prev, data.message]);
+        }
         setInputText('');
         setAttachmentPreview(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
@@ -355,6 +388,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
           'x-user-id': currentUser.id
         },
         body: JSON.stringify({
@@ -370,8 +404,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
       });
 
       if (res.ok) {
-        const data = await res.json();
-        setMessages(prev => [...prev, data.message]);
+        const text = await res.text();
+        const data = text ? JSON.parse(text) : {};
+        if (data.message) {
+          setMessages(prev => [...prev, data.message]);
+        }
         setShowTaskSelector(false);
       }
     } catch (err) {

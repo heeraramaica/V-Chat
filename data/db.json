@@ -1,18 +1,5 @@
 {
-  "users": [
-    {
-      "id": "usr-1789638613736-gxd42",
-      "name": "Heera Ram",
-      "email": "heeraram@varmaandvarma.com",
-      "password": "94145#Shree",
-      "role": "Partner",
-      "avatar": "https://api.dicebear.com/7.x/initials/svg?seed=Heera%20Ram",
-      "isAdmin": true,
-      "status": "active",
-      "createdAt": "2026-09-17T09:50:13.736Z",
-      "lastLoginAt": "2026-09-17T09:50:13.736Z"
-    }
-  ],
+  "users": [],
   "allowedEmployees": [
     {
       "email": "rohit.manager@varmavarma.com",
@@ -45,219 +32,26 @@
       "phone": "+91 98199 55432",
       "addedBy": "System Pre-seed",
       "addedAt": "2026-09-17T09:14:46.969Z"
-    }
-  ],
-  "authLogs": [
+    },
     {
-      "id": "log-1789638613736-66rpt",
-      "userId": "usr-1789638613736-gxd42",
-      "email": "heeraram@varmaandvarma.com",
-      "event": "SIGNUP_ADMIN",
+      "email": "shreedevi.heeraram@gmail.com",
+      "name": "Shri Devi",
+      "role": "Articles",
+      "phone": "7597368283",
+      "addedBy": "Heera Ram",
+      "addedAt": "2026-09-26T17:16:51.569Z"
+    },
+    {
+      "email": "heeraramaica@gmail.com",
+      "name": "Heeraram",
       "role": "Partner",
-      "ip": "114.143.61.58, 169.254.169.126",
-      "timestamp": "2026-09-17T09:50:13.736Z",
-      "details": "Primary Admin/Partner successfully registered."
-    },
-    {
-      "id": "log-1789638593766-mmw7x",
-      "email": "heeraram@varmaandvarma.com",
-      "event": "LOGIN_FAILED",
-      "ip": "114.143.61.58, 169.254.169.126",
-      "timestamp": "2026-09-17T09:49:53.766Z",
-      "details": "Invalid password or unknown email ID"
-    },
-    {
-      "id": "log-1789638570380-esapa",
-      "email": "heeraram@varmaandvarma.com",
-      "event": "LOGIN_FAILED",
-      "ip": "114.143.61.58, 169.254.169.126",
-      "timestamp": "2026-09-17T09:49:30.380Z",
-      "details": "Invalid password or unknown email ID"
-    },
-    {
-      "id": "log-1789638562467-7z4cw",
-      "email": "heeraram@varmaandvarma.com",
-      "event": "LOGIN_FAILED",
-      "ip": "114.143.61.58, 169.254.169.126",
-      "timestamp": "2026-09-17T09:49:22.467Z",
-      "details": "Invalid password or unknown email ID"
+      "phone": "",
+      "addedBy": "Heera Ram",
+      "addedAt": "2026-09-26T18:31:08.965Z"
     }
   ],
-  "tasks": [
-    {
-      "id": "tsk-seed-1789707486611-4",
-      "title": "Form AOC-4 Financial Statements Filing on MCA V3",
-      "description": "Annual ROC filing of Balance Sheet, Profit & Loss, Board Report and CARO report.",
-      "category": "Corporate & MCA Law",
-      "clientName": "Godrej Infotech Solutions Private Limited",
-      "clientPAN_GSTIN": "27AABCG1234F1ZG",
-      "assignedToId": "ananya.accountant@varmavarma.com",
-      "assignedToName": "Ananya Sharma",
-      "assignedToEmail": "ananya.accountant@varmavarma.com",
-      "assignedToRole": "Accountant",
-      "assignedById": "usr-1789638613736-gxd42",
-      "assignedByName": "Heera Ram",
-      "dueDate": "2026-09-27",
-      "priority": "Medium",
-      "status": "Pending",
-      "instructions": "Check Director DIN status on MCA portal and ensure all notes to accounts are attached in searchable PDF format.",
-      "checklist": [
-        {
-          "id": "c1",
-          "text": "Collate signed Director report and Auditor report",
-          "completed": true
-        },
-        {
-          "id": "c2",
-          "text": "Draft form AOC-4 on MCA V3 portal",
-          "completed": false
-        },
-        {
-          "id": "c3",
-          "text": "Affix CA and Director digital signatures",
-          "completed": false
-        }
-      ],
-      "reminders": [],
-      "attachments": [],
-      "createdAt": "2026-09-18T04:58:06.611Z",
-      "updatedAt": "2026-09-18T04:58:06.611Z"
-    },
-    {
-      "id": "tsk-seed-1789707486611-3",
-      "title": "Bank Concurrent Audit - Stock & Book Debts Inspection",
-      "description": "Monthly physical stock inspection, drawing power calculation & DP register verification.",
-      "category": "Banking & Concurrent Audit",
-      "clientName": "State Bank of India (Nariman Point Large Corporate Branch)",
-      "clientPAN_GSTIN": "27AAACS0011H1Z5",
-      "assignedToId": "kunal.assistant@varmavarma.com",
-      "assignedToName": "Kunal Mehta",
-      "assignedToEmail": "kunal.assistant@varmavarma.com",
-      "assignedToRole": "Paid Assistant",
-      "assignedById": "usr-1789638613736-gxd42",
-      "assignedByName": "Heera Ram",
-      "dueDate": "2026-09-20",
-      "priority": "High",
-      "status": "In Review",
-      "instructions": "Check borrower godown inspection reports and verify insurance coverage adequacy with bank hypothecation clause.",
-      "checklist": [
-        {
-          "id": "c1",
-          "text": "Obtain monthly DP statements for top 20 borrowal accounts",
-          "completed": true
-        },
-        {
-          "id": "c2",
-          "text": "Verify ageing of book debts (exclude >90 days)",
-          "completed": true
-        },
-        {
-          "id": "c3",
-          "text": "Draft monthly audit memo for Bank AGM",
-          "completed": true
-        }
-      ],
-      "reminders": [],
-      "attachments": [],
-      "createdAt": "2026-09-18T04:58:06.611Z",
-      "updatedAt": "2026-09-18T04:58:06.611Z"
-    },
-    {
-      "id": "tsk-seed-1789707486611-2",
-      "title": "GSTR-3B Filing & 2B ITC Reconciliation",
-      "description": "Monthly GSTR-3B return filing, reconciliation with purchase ledger and tax payment challan.",
-      "category": "GST & Indirect Tax",
-      "clientName": "Reliance Retail Logistics Hub (Bhiwandi)",
-      "clientPAN_GSTIN": "27AABCR9876M1Z2",
-      "assignedToId": "priya.article@varmavarma.com",
-      "assignedToName": "Priya Deshmukh",
-      "assignedToEmail": "priya.article@varmavarma.com",
-      "assignedToRole": "Articles",
-      "assignedById": "usr-1789638613736-gxd42",
-      "assignedByName": "Heera Ram",
-      "dueDate": "2026-09-21",
-      "priority": "High",
-      "status": "Pending",
-      "instructions": "Do not claim blocked credit under Sec 17(5) for motor vehicles. Verify RCM liability on GTA freight bills.",
-      "checklist": [
-        {
-          "id": "c1",
-          "text": "Download 2B for current month",
-          "completed": true
-        },
-        {
-          "id": "c2",
-          "text": "Run reconciliation with Tally ERP purchase register",
-          "completed": false
-        },
-        {
-          "id": "c3",
-          "text": "Compute net cash liability after ITC utilization",
-          "completed": false
-        },
-        {
-          "id": "c4",
-          "text": "Send confirmation email to CFO before filing",
-          "completed": false
-        }
-      ],
-      "reminders": [],
-      "attachments": [],
-      "createdAt": "2026-09-18T04:58:06.611Z",
-      "updatedAt": "2026-09-18T04:58:06.611Z"
-    },
-    {
-      "id": "tsk-seed-1789707486611-1",
-      "title": "Statutory Tax Audit u/s 44AB & Form 3CD",
-      "description": "Comprehensive tax audit clause 1 to 44 verification, depreciation schedule & disallowances.",
-      "category": "Statutory Audit",
-      "clientName": "Tata Consumer Products Ltd (Mumbai Unit)",
-      "clientPAN_GSTIN": "27AAACT2345K1Z8",
-      "assignedToId": "rohit.manager@varmavarma.com",
-      "assignedToName": "Rohit Kulkarni",
-      "assignedToEmail": "rohit.manager@varmavarma.com",
-      "assignedToRole": "Manager",
-      "assignedById": "usr-1789638613736-gxd42",
-      "assignedByName": "Heera Ram",
-      "dueDate": "2026-09-23",
-      "priority": "Urgent",
-      "status": "In Progress",
-      "instructions": "Scrutinize Clause 21(d) cash payments above Rs 10,000 and match Clause 34 TDS with 26AS. Keep working paper file signed.",
-      "checklist": [
-        {
-          "id": "c1",
-          "text": "Obtain trial balance and audited balance sheet",
-          "completed": true
-        },
-        {
-          "id": "c2",
-          "text": "Verify clause 13 method of accounting",
-          "completed": true
-        },
-        {
-          "id": "c3",
-          "text": "Verify clause 21 disallowance u/s 40(a)(ia)",
-          "completed": false
-        },
-        {
-          "id": "c4",
-          "text": "Prepare draft Form 3CD for Partner signoff",
-          "completed": false
-        }
-      ],
-      "reminders": [
-        {
-          "id": "r1",
-          "datetime": "2026-09-22 10:00",
-          "note": "Draft review with partner",
-          "sent": false
-        }
-      ],
-      "attachments": [],
-      "createdAt": "2026-09-18T04:58:06.611Z",
-      "updatedAt": "2026-09-18T04:58:06.611Z"
-    }
-  ],
+  "authLogs": [],
+  "tasks": [],
   "predefinedTasks": [
     {
       "id": "pt-1",
@@ -383,56 +177,17 @@
       "name": "Varma & Varma - Mumbai Branch HQ",
       "type": "group",
       "participants": [
-        "all",
-        "usr-1789638613736-gxd42"
+        "all"
       ],
       "participantDetails": [],
       "description": "Official WhatsApp-style branch group for Varma & Varma Mumbai. All team instructions, follow-ups, and firm updates.",
       "createdBy": "system",
-      "createdAt": "2026-09-17T09:14:46.969Z",
+      "createdAt": "2026-09-26T18:40:01.349Z",
       "lastMessage": {
-        "content": "hi",
-        "timestamp": "2026-09-18T05:42:31.877Z",
-        "senderName": "Heera Ram",
+        "content": "Branch HQ initialized. First registered Admin will manage team tasks and assignments.",
+        "timestamp": "2026-09-26T18:40:01.349Z",
+        "senderName": "System",
         "type": "text"
-      }
-    },
-    {
-      "id": "chat-audit-team",
-      "name": "Statutory & Tax Audit Wing",
-      "type": "group",
-      "participants": [
-        "all",
-        "usr-1789638613736-gxd42"
-      ],
-      "participantDetails": [],
-      "description": "Working group for Tax Audit 44AB, Company Audit CARO 2020, and bank audits.",
-      "createdBy": "system",
-      "createdAt": "2026-09-17T09:14:46.969Z",
-      "lastMessage": {
-        "content": "Please upload all 3CD draft annexures here before partner review.",
-        "timestamp": "2026-09-17T09:14:46.969Z",
-        "senderName": "Audit Desk",
-        "type": "text"
-      }
-    },
-    {
-      "id": "chat-gst-directtax",
-      "name": "GST & Direct Tax Compliance",
-      "type": "group",
-      "participants": [
-        "all",
-        "usr-1789638613736-gxd42"
-      ],
-      "participantDetails": [],
-      "description": "GSTR-3B, GSTR-1, Advance tax computation & ITR filings tracking.",
-      "createdBy": "system",
-      "createdAt": "2026-09-17T09:14:46.970Z",
-      "lastMessage": {
-        "content": "📌 Attached Task: \"Form AOC-4 Financial Statements Filing on MCA V3\" for Client Godrej Infotech Solutions Private Limited (Assigned to: Ananya Sharma)",
-        "timestamp": "2026-09-18T05:46:06.280Z",
-        "senderName": "Heera Ram",
-        "type": "task_alert"
       }
     }
   ],
@@ -494,6 +249,71 @@
         "status": "Pending",
         "dueDate": "2026-09-27"
       }
+    },
+    {
+      "id": "msg-1790443476813-9q0lk",
+      "chatId": "chat-direct-1790443476813-9a0tw",
+      "senderId": "usr-1789638613736-gxd42",
+      "senderName": "Heera Ram",
+      "senderRole": "Partner",
+      "content": "Started direct 1-on-1 chat with Shri Devi (Articles).",
+      "type": "text",
+      "timestamp": "2026-09-26T17:24:36.813Z",
+      "readBy": [
+        "usr-1789638613736-gxd42"
+      ]
+    },
+    {
+      "id": "msg-1790443482554-hahuf",
+      "chatId": "chat-direct-1790443476813-9a0tw",
+      "senderId": "usr-1789638613736-gxd42",
+      "senderName": "Heera Ram",
+      "senderRole": "Partner",
+      "content": "hi",
+      "type": "text",
+      "timestamp": "2026-09-26T17:24:42.554Z",
+      "readBy": [
+        "usr-1789638613736-gxd42"
+      ]
+    },
+    {
+      "id": "msg-1790443745236-awq95",
+      "chatId": "chat-direct-1790443476813-9a0tw",
+      "senderId": "usr-1789638613736-gxd42",
+      "senderName": "Heera Ram",
+      "senderRole": "Partner",
+      "content": "hello",
+      "type": "text",
+      "timestamp": "2026-09-26T17:29:05.236Z",
+      "readBy": [
+        "usr-1789638613736-gxd42"
+      ]
+    },
+    {
+      "id": "msg-1790443762482-ulpoe",
+      "chatId": "chat-direct-1790443476813-9a0tw",
+      "senderId": "usr-1789638613736-gxd42",
+      "senderName": "Heera Ram",
+      "senderRole": "Partner",
+      "content": "hi",
+      "type": "text",
+      "timestamp": "2026-09-26T17:29:22.482Z",
+      "readBy": [
+        "usr-1789638613736-gxd42"
+      ]
+    },
+    {
+      "id": "msg-1790447915714-myp48",
+      "chatId": "chat-direct-1790443476813-9a0tw",
+      "senderId": "usr-1789638613736-gxd42",
+      "senderName": "Heera Ram",
+      "senderRole": "Partner",
+      "content": "hi",
+      "type": "text",
+      "timestamp": "2026-09-26T18:38:35.714Z",
+      "readBy": [
+        "usr-1789638613736-gxd42"
+      ]
     }
   ]
 }

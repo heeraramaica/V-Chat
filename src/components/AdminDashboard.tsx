@@ -38,10 +38,14 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const fetchAnalytics = async () => {
     try {
       const res = await fetch('/api/dashboard/analytics', {
-        headers: { 'x-user-id': currentUser.id }
+        headers: {
+          'x-user-id': currentUser.id,
+          'Accept': 'application/json'
+        }
       });
       if (res.ok) {
-        const data = await res.json();
+        const text = await res.text();
+        const data = text ? JSON.parse(text) : null;
         setAnalytics(data);
       }
     } catch (err) {
@@ -63,6 +67,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
           'x-user-id': currentUser.id
         }
       });

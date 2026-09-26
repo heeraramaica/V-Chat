@@ -45,10 +45,14 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
   const fetchData = async () => {
     try {
       const res = await fetch('/api/admin/employees', {
-        headers: { 'x-user-id': currentUser.id }
+        headers: {
+          'x-user-id': currentUser.id,
+          'Accept': 'application/json'
+        }
       });
       if (res.ok) {
-        const data = await res.json();
+        const text = await res.text();
+        const data = text ? JSON.parse(text) : {};
         setAllowedEmployees(data.allowedEmployees || []);
         setRegisteredUsers(data.registeredUsers || []);
         setAuditLogs(data.auditLogs || []);
@@ -75,6 +79,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
           'x-user-id': currentUser.id
         },
         body: JSON.stringify({
@@ -85,9 +90,18 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
         })
       });
 
-      const data = await res.json();
+      const rawText = await res.text();
+      let data: any = {};
+      if (rawText && rawText.trim()) {
+        try {
+          data = JSON.parse(rawText);
+        } catch {
+          data = { error: rawText };
+        }
+      }
+
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to add employee');
+        throw new Error(data?.error || `Failed to add employee (HTTP ${res.status})`);
       }
 
       setSuccessMsg(`Employee ${name} (${email}) added and whitelisted for sign-up!`);
@@ -108,7 +122,10 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
     try {
       const res = await fetch(`/api/admin/employees/${encodeURIComponent(delEmail)}`, {
         method: 'DELETE',
-        headers: { 'x-user-id': currentUser.id }
+        headers: {
+          'x-user-id': currentUser.id,
+          'Accept': 'application/json'
+        }
       });
       if (res.ok) {
         fetchData();

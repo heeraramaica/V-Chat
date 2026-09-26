@@ -84,35 +84,53 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
 
   // Fetch predefined CA task templates and employees roster
   useEffect(() => {
-    fetch('/api/predefined-tasks')
-      .then(res => res.json())
-      .then(data => setPredefinedTemplates(data.tasks || []))
-      .catch(() => {});
+    async function loadInitialData() {
+      try {
+        const res = await fetch('/api/predefined-tasks', {
+          headers: { 'Accept': 'application/json' }
+        });
+        if (res.ok) {
+          const text = await res.text();
+          const data = text ? JSON.parse(text) : {};
+          setPredefinedTemplates(data.tasks || []);
+        }
+      } catch (err) {
+        console.warn('Failed to load predefined tasks:', err);
+      }
 
-    if (currentUser.isAdmin) {
-      fetch('/api/admin/employees', {
-        headers: { 'x-user-id': currentUser.id }
-      })
-        .then(res => res.json())
-        .then(data => {
-          const list = [
-            ...(data.registeredUsers || []),
-            ...(data.allowedEmployees || [])
-          ];
-          // deduplicate by email
-          const seen = new Set();
-          const unique = list.filter(item => {
-            if (seen.has(item.email.toLowerCase())) return false;
-            seen.add(item.email.toLowerCase());
-            return true;
+      if (currentUser.isAdmin) {
+        try {
+          const res = await fetch('/api/admin/employees', {
+            headers: {
+              'x-user-id': currentUser.id,
+              'Accept': 'application/json'
+            }
           });
-          setEmployeeRoster(unique);
-          if (unique.length > 0 && !assignedToId) {
-            setAssignedToId(unique[0].id || unique[0].email);
+          if (res.ok) {
+            const text = await res.text();
+            const data = text ? JSON.parse(text) : {};
+            const list = [
+              ...(data.registeredUsers || []),
+              ...(data.allowedEmployees || [])
+            ];
+            // deduplicate by email
+            const seen = new Set();
+            const unique = list.filter(item => {
+              if (seen.has(item.email.toLowerCase())) return false;
+              seen.add(item.email.toLowerCase());
+              return true;
+            });
+            setEmployeeRoster(unique);
+            if (unique.length > 0 && !assignedToId) {
+              setAssignedToId(unique[0].id || unique[0].email);
+            }
           }
-        })
-        .catch(() => {});
+        } catch (err) {
+          console.warn('Failed to load employee roster:', err);
+        }
+      }
     }
+    loadInitialData();
   }, [currentUser.id, currentUser.isAdmin]);
 
   // Handle selected task from chat
@@ -250,7 +268,8 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
         });
 
         if (upRes.ok) {
-          const upData = await upRes.json();
+          const upText = await upRes.text();
+          const upData = upText ? JSON.parse(upText) : {};
           const newAttachment = {
             id: `att-${Date.now()}`,
             name: upData.name,

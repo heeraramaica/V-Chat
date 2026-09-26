@@ -329,6 +329,20 @@ async function startServer() {
   app.use(express.json({ limit: '35mb' }));
   app.use(express.urlencoded({ extended: true, limit: '35mb' }));
 
+  // Handle malformed JSON body payloads safely
+  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (err instanceof SyntaxError && 'status' in err && (err as any).status === 400) {
+      return res.status(400).json({ error: 'Malformed JSON payload received in request body' });
+    }
+    next(err);
+  });
+
+  // Ensure JSON response header on all /api requests
+  app.use('/api', (req, res, next) => {
+    res.setHeader('Content-Type', 'application/json');
+    next();
+  });
+
   // Static files for uploaded media
   app.use('/uploads', express.static(UPLOAD_DIR));
 
@@ -336,176 +350,269 @@ async function startServer() {
 
   // Health Check
   app.get('/api/health', (req, res) => {
-    res.json({
-      status: 'ok',
-      firm: 'Varma & Varma Mumbai Branch',
-      usersCount: db.users.length,
-      tasksCount: db.tasks.length,
-      timestamp: new Date().toISOString()
-    });
+    try {
+      res.json({
+        status: 'ok',
+        firm: 'Varma & Varma Mumbai Branch',
+        usersCount: Array.isArray(db.users) ? db.users.length : 0,
+        tasksCount: Array.isArray(db.tasks) ? db.tasks.length : 0,
+        timestamp: new Date().toISOString()
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Health check failed', details: err?.message });
+    }
   });
 
   // Auth Status: check if first-time setup or registered users
   app.get('/api/auth/status', (req, res) => {
-    res.json({
-      totalUsers: db.users.length,
-      hasAdmin: db.users.some(u => u.isAdmin),
-      allowedCount: db.allowedEmployees.length,
-      predefinedTasksCount: db.predefinedTasks.length
-    });
+    try {
+      if (!Array.isArray(db.users)) db.users = [];
+      if (!Array.isArray(db.allowedEmployees)) db.allowedEmployees = [];
+      if (!Array.isArray(db.predefinedTasks)) db.predefinedTasks = [];
+
+      const totalUsers = db.users.length;
+      const hasAdmin = db.users.some(u => u && u.isAdmin);
+      const isFirstTimeSetup = totalUsers === 0 || !hasAdmin;
+
+      res.status(200).json({
+        totalUsers,
+        hasAdmin,
+        isFirstTimeSetup,
+        allowedCount: db.allowedEmployees.length,
+        predefinedTasksCount: db.predefinedTasks.length
+      });
+    } catch (err: any) {
+      console.error('Error fetching auth status:', err);
+      res.status(500).json({
+        error: 'Failed to retrieve authentication status',
+        totalUsers: 0,
+        hasAdmin: false,
+        isFirstTimeSetup: true
+      });
+    }
+  });
+
+  // Reset database for fresh First-Time Admin Account registration test
+  app.post('/api/auth/reset-demo-db', (req, res) => {
+    try {
+      db.users = [];
+      db.authLogs = [];
+      db.tasks = [];
+      if (!Array.isArray(db.chats)) db.chats = [];
+      db.chats = [
+        {
+          id: 'chat-branch-general',
+          name: 'Varma & Varma - Mumbai Branch HQ',
+          type: 'group',
+          participants: ['all'],
+          participantDetails: [],
+          description: 'Official WhatsApp-style branch group for Varma & Varma Mumbai. All team instructions, follow-ups, and firm updates.',
+          createdBy: 'system',
+          createdAt: new Date().toISOString(),
+          lastMessage: {
+            content: 'Branch HQ initialized. First registered Admin will manage team tasks and assignments.',
+            timestamp: new Date().toISOString(),
+            senderName: 'System',
+            type: 'text'
+          }
+        }
+      ];
+      saveDatabase(db);
+      res.status(200).json({
+        message: 'Database reset to initial state. Ready for First-Time Admin Account registration.',
+        totalUsers: 0,
+        hasAdmin: false
+      });
+    } catch (err: any) {
+      console.error('Failed to reset db:', err);
+      res.status(500).json({ error: err.message || 'Failed to reset database' });
+    }
   });
 
   // Sign up
   app.post('/api/auth/signup', (req, res) => {
-    const { name, email, password, phone, role } = req.body;
-    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
-
-    if (!email || !password || !name) {
-      return res.status(400).json({ error: 'Name, email, and password are required' });
-    }
-
-    const cleanEmail = String(email).trim().toLowerCase();
-    const existing = db.users.find(u => u.email.toLowerCase() === cleanEmail);
-    if (existing) {
-      return res.status(400).json({ error: 'An account with this email already exists. Please log in.' });
-    }
-
-    const isFirstUser = db.users.length === 0;
-
-    // Strict requirement:
-    // "The first user to sign in will be admin user by default."
-    // "Any other email id other than ones added by admin shall not be allowed the signup."
-    if (!isFirstUser) {
-      const allowed = db.allowedEmployees.find(e => e.email.toLowerCase() === cleanEmail);
-      if (!allowed) {
-        // Log rejected signup attempt
-        db.authLogs.unshift({
-          id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-          email: cleanEmail,
-          event: 'SIGNUP_BLOCKED_NOT_WHITELISTED',
-          ip: String(clientIp),
-          timestamp: new Date().toISOString(),
-          details: `Attempted signup blocked: Email ${cleanEmail} is not authorized by Admin.`
-        });
-        saveDatabase(db);
-
-        return res.status(403).json({
-          error: 'Access Denied: Only employees whose email IDs have been registered by Varma & Varma Admin can sign up. Please contact branch administration.'
-        });
+    try {
+      if (!req.body || typeof req.body !== 'object') {
+        return res.status(400).json({ error: 'Request body must be a valid JSON object' });
       }
-    }
 
-    // Role determination: First user is Partner (Admin). Subsequent users take admin-assigned role or selected role from whitelist.
-    let userRole = 'Partner';
-    let isAdmin = false;
+      const { name, email, password, phone, role } = req.body;
+      const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+      const clientIp = Array.isArray(rawIp) ? rawIp.join(', ') : String(rawIp);
 
-    if (isFirstUser) {
-      userRole = 'Partner';
-      isAdmin = true;
-    } else {
-      const allowed = db.allowedEmployees.find(e => e.email.toLowerCase() === cleanEmail);
-      userRole = allowed?.role || role || 'Articles';
-      isAdmin = false;
-    }
-
-    const newUser = {
-      id: `usr-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-      name: String(name).trim(),
-      email: cleanEmail,
-      password: String(password), // In production hash, simple storage for firm internal
-      role: userRole,
-      phone: phone ? String(phone).trim() : undefined,
-      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`,
-      isAdmin,
-      status: 'active' as const,
-      createdAt: new Date().toISOString(),
-      lastLoginAt: new Date().toISOString()
-    };
-
-    db.users.push(newUser);
-
-    // If allowed employee was invited, update their status
-    db.allowedEmployees = db.allowedEmployees.map(e => 
-      e.email.toLowerCase() === cleanEmail ? { ...e, status: 'active' } : e
-    );
-
-    // Save auth log
-    db.authLogs.unshift({
-      id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-      userId: newUser.id,
-      email: cleanEmail,
-      event: isFirstUser ? 'SIGNUP_ADMIN' : 'SIGNUP_EMPLOYEE',
-      role: userRole,
-      ip: String(clientIp),
-      timestamp: new Date().toISOString(),
-      details: `${isFirstUser ? 'Primary Admin/Partner' : 'Employee (' + userRole + ')'} successfully registered.`
-    });
-
-    // Auto-add employee to branch general chat
-    db.chats.forEach(chat => {
-      if (chat.participants.includes('all') && !chat.participants.includes(newUser.id)) {
-        chat.participants.push(newUser.id);
+      if (!email || !password || !name) {
+        return res.status(400).json({ error: 'Name, email, and password are required' });
       }
-    });
 
-    saveDatabase(db);
+      const cleanEmail = String(email).trim().toLowerCase();
 
-    const { password: _, ...safeUser } = newUser;
-    return res.status(201).json({
-      message: isFirstUser ? 'Admin account created successfully' : 'Employee account created successfully',
-      user: safeUser
-    });
+      // Ensure data collections are initialized arrays
+      if (!Array.isArray(db.users)) db.users = [];
+      if (!Array.isArray(db.allowedEmployees)) db.allowedEmployees = [];
+      if (!Array.isArray(db.authLogs)) db.authLogs = [];
+      if (!Array.isArray(db.chats)) db.chats = [];
+
+      const existing = db.users.find(u => u && u.email && u.email.toLowerCase() === cleanEmail);
+      if (existing) {
+        return res.status(400).json({ error: 'An account with this email already exists. Please log in.' });
+      }
+
+      // Check if this registration is for the First-Time Admin Account:
+      // True if zero users or no admin currently exists
+      const hasAdmin = db.users.some(u => u && u.isAdmin);
+      const isFirstUser = db.users.length === 0 || !hasAdmin;
+
+      // Strict requirement:
+      // "The first user to sign in will be admin user by default."
+      // "Any other email id other than ones added by admin shall not be allowed the signup."
+      if (!isFirstUser) {
+        const allowed = db.allowedEmployees.find(e => e && e.email && e.email.toLowerCase() === cleanEmail);
+        if (!allowed) {
+          // Log rejected signup attempt
+          db.authLogs.unshift({
+            id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            email: cleanEmail,
+            event: 'SIGNUP_BLOCKED_NOT_WHITELISTED',
+            ip: clientIp,
+            timestamp: new Date().toISOString(),
+            details: `Attempted signup blocked: Email ${cleanEmail} is not authorized by Admin.`
+          });
+          saveDatabase(db);
+
+          return res.status(403).json({
+            error: 'Access Denied: Only employees whose email IDs have been registered by Varma & Varma Admin can sign up. Please contact branch administration.'
+          });
+        }
+      }
+
+      // Role determination: First user is Partner (Admin). Subsequent users take admin-assigned role or selected role from whitelist.
+      let userRole = 'Partner';
+      let isAdmin = false;
+
+      if (isFirstUser) {
+        userRole = 'Partner';
+        isAdmin = true;
+      } else {
+        const allowed = db.allowedEmployees.find(e => e && e.email && e.email.toLowerCase() === cleanEmail);
+        userRole = allowed?.role || role || 'Articles';
+        isAdmin = false;
+      }
+
+      const newUser = {
+        id: `usr-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        name: String(name).trim(),
+        email: cleanEmail,
+        password: String(password),
+        role: userRole,
+        phone: phone ? String(phone).trim() : undefined,
+        avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`,
+        isAdmin,
+        status: 'active' as const,
+        createdAt: new Date().toISOString(),
+        lastLoginAt: new Date().toISOString()
+      };
+
+      db.users.push(newUser);
+
+      // If allowed employee was invited, update their status
+      db.allowedEmployees = db.allowedEmployees.map(e => 
+        e && e.email && e.email.toLowerCase() === cleanEmail ? { ...e, status: 'active' } : e
+      );
+
+      // Save auth log safely
+      db.authLogs.unshift({
+        id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        userId: newUser.id,
+        email: cleanEmail,
+        event: isFirstUser ? 'SIGNUP_ADMIN' : 'SIGNUP_EMPLOYEE',
+        role: userRole,
+        ip: clientIp,
+        timestamp: new Date().toISOString(),
+        details: `${isFirstUser ? 'Primary Admin/Partner' : 'Employee (' + userRole + ')'} successfully registered.`
+      });
+
+      // Auto-add employee to branch general chat safely
+      db.chats.forEach(chat => {
+        if (chat && Array.isArray(chat.participants)) {
+          if (chat.participants.includes('all') && !chat.participants.includes(newUser.id)) {
+            chat.participants.push(newUser.id);
+          }
+        }
+      });
+
+      saveDatabase(db);
+
+      const { password: _, ...safeUser } = newUser;
+      return res.status(201).json({
+        message: isFirstUser ? 'First-time Admin account created successfully' : 'Employee account created successfully',
+        user: safeUser
+      });
+    } catch (err: any) {
+      console.error('Error during /api/auth/signup:', err);
+      return res.status(500).json({
+        error: err?.message || 'Internal server error during registration'
+      });
+    }
   });
 
   // Login
   app.post('/api/auth/login', (req, res) => {
-    const { email, password } = req.body;
-    const clientIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+    try {
+      const { email, password } = req.body || {};
+      const rawIp = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+      const clientIp = Array.isArray(rawIp) ? rawIp.join(', ') : String(rawIp);
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
-    }
+      if (!email || !password) {
+        return res.status(400).json({ error: 'Email and password are required' });
+      }
 
-    const cleanEmail = String(email).trim().toLowerCase();
-    const user = db.users.find(u => u.email.toLowerCase() === cleanEmail);
+      if (!Array.isArray(db.users)) db.users = [];
+      if (!Array.isArray(db.authLogs)) db.authLogs = [];
 
-    if (!user || user.password !== String(password)) {
-      // Log failed login
+      const cleanEmail = String(email).trim().toLowerCase();
+      const user = db.users.find(u => u && u.email && u.email.toLowerCase() === cleanEmail);
+
+      if (!user || user.password !== String(password)) {
+        // Log failed login
+        db.authLogs.unshift({
+          id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+          email: cleanEmail,
+          event: 'LOGIN_FAILED',
+          ip: clientIp,
+          timestamp: new Date().toISOString(),
+          details: 'Invalid password or unknown email ID'
+        });
+        saveDatabase(db);
+
+        return res.status(401).json({ error: 'Invalid email or password' });
+      }
+
+      // Update lastLoginAt
+      user.lastLoginAt = new Date().toISOString();
+
+      // Log successful login
       db.authLogs.unshift({
         id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        userId: user.id,
         email: cleanEmail,
-        event: 'LOGIN_FAILED',
-        ip: String(clientIp),
+        event: 'LOGIN_SUCCESS',
+        role: user.role,
+        ip: clientIp,
         timestamp: new Date().toISOString(),
-        details: 'Invalid password or unknown email ID'
+        details: `User ${user.name} logged in from ${clientIp}`
       });
+
       saveDatabase(db);
 
-      return res.status(401).json({ error: 'Invalid email or password' });
+      const { password: _, ...safeUser } = user;
+      return res.status(200).json({
+        message: 'Login successful',
+        user: safeUser
+      });
+    } catch (err: any) {
+      console.error('Error during /api/auth/login:', err);
+      return res.status(500).json({ error: err?.message || 'Internal server error during login' });
     }
-
-    // Update lastLoginAt
-    user.lastLoginAt = new Date().toISOString();
-
-    // Log successful login
-    db.authLogs.unshift({
-      id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-      userId: user.id,
-      email: cleanEmail,
-      event: 'LOGIN_SUCCESS',
-      role: user.role,
-      ip: String(clientIp),
-      timestamp: new Date().toISOString(),
-      details: `User ${user.name} logged in from ${clientIp}`
-    });
-
-    saveDatabase(db);
-
-    const { password: _, ...safeUser } = user;
-    res.json({
-      message: 'Login successful',
-      user: safeUser
-    });
   });
 
   // Employee Management (Admin only)
@@ -1538,6 +1645,27 @@ async function startServer() {
     res.json({ message: 'Sample CA tasks loaded successfully', count: db.tasks.length });
   });
 
+  // --- 404 HANDLER FOR API ENDPOINTS (Ensures unknown /api requests never return HTML or empty response) ---
+  app.all('/api/*', (req, res) => {
+    res.status(404).json({
+      error: `API route not found: ${req.method} ${req.path}`,
+      status: 404
+    });
+  });
+
+  // --- GLOBAL EXPRESS ERROR HANDLER (Always returns valid JSON with proper error codes) ---
+  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error(`[Server Error] ${req.method} ${req.path}:`, err);
+    if (res.headersSent) {
+      return next(err);
+    }
+    const statusCode = typeof err.status === 'number' ? err.status : (typeof err.statusCode === 'number' ? err.statusCode : 500);
+    res.status(statusCode).json({
+      error: err?.message || 'An internal server error occurred',
+      status: statusCode
+    });
+  });
+
   // --- VITE MIDDLEWARE (Full-Stack Express + Vite) ---
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');
@@ -1550,11 +1678,6 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    // Return 404 JSON for unknown API routes in production
-    app.all('/api/*', (req, res) => {
-      res.status(404).json({ error: 'API route not found' });
-    });
-
     const distPath = path.join(process.cwd(), 'dist');
     if (fs.existsSync(distPath)) {
       app.use(express.static(distPath));

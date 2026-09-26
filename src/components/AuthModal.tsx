@@ -44,22 +44,36 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     allowedCount: number;
   }>({ totalUsers: 0, hasAdmin: false, allowedCount: 0 });
 
-  // Fetch db auth status to know if first user
+  // Fetch db auth status safely inspecting response.ok and reading response text first
   useEffect(() => {
-    fetch('/api/auth/status')
-      .then(res => res.json())
-      .then(data => {
-        setDbStatus(data);
-        if (data.totalUsers === 0) {
-          setIsSignUp(true);
+    async function loadAuthStatus() {
+      try {
+        const res = await fetch('/api/auth/status', {
+          headers: { 'Accept': 'application/json' }
+        });
+        if (!res.ok) {
+          console.warn(`Auth status endpoint returned status ${res.status}`);
+          return;
         }
-      })
-      .catch(() => {});
+        const text = await res.text();
+        if (!text || !text.trim()) return;
+        const data = JSON.parse(text);
+        if (data) {
+          setDbStatus(data);
+          if (data.totalUsers === 0 || !data.hasAdmin) {
+            setIsSignUp(true);
+          }
+        }
+      } catch (err) {
+        console.warn('Could not read auth status:', err);
+      }
+    }
+    loadAuthStatus();
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const isFirstUser = dbStatus.totalUsers === 0;
+  const isFirstUser = dbStatus.totalUsers === 0 || !dbStatus.hasAdmin;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,14 +89,31 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
       const res = await fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify(bodyPayload)
       });
 
-      const data = await res.json();
+      // Safely read response text before calling JSON parse to prevent "Unexpected end of JSON input"
+      const rawText = await res.text();
+      let data: any = {};
+      if (rawText && rawText.trim().length > 0) {
+        try {
+          data = JSON.parse(rawText);
+        } catch {
+          data = { error: rawText };
+        }
+      }
 
+      // Safely inspect response.ok
       if (!res.ok) {
-        throw new Error(data.error || 'Authentication failed');
+        throw new Error(data?.error || data?.message || `Server returned error (${res.status})`);
+      }
+
+      if (!data?.user) {
+        throw new Error('Registration completed but server did not return user details.');
       }
 
       setSuccessMsg(isSignUp ? 'Account registered successfully!' : 'Login successful!');
@@ -91,7 +122,39 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         if (onClose) onClose();
       }, 500);
     } catch (err: any) {
-      setError(err.message || 'Something went wrong');
+      setError(err.message || 'Something went wrong during authentication');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetDbForAdminTest = async () => {
+    if (!window.confirm('Reset database to test fresh First-Time Admin Account registration? Existing demo accounts will be cleared.')) {
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/auth/reset-demo-db', {
+        method: 'POST',
+        headers: { 'Accept': 'application/json' }
+      });
+      const rawText = await res.text();
+      let data: any = {};
+      if (rawText && rawText.trim()) {
+        try { data = JSON.parse(rawText); } catch {}
+      }
+      if (!res.ok) {
+        throw new Error(data?.error || `Reset failed with HTTP ${res.status}`);
+      }
+      setDbStatus({ totalUsers: 0, hasAdmin: false, allowedCount: dbStatus.allowedCount });
+      setIsSignUp(true);
+      setEmail('');
+      setPassword('');
+      setName('');
+      setSuccessMsg('Database cleared! You can now register the First-Time Admin Account.');
+    } catch (err: any) {
+      setError(err.message || 'Failed to reset database');
     } finally {
       setLoading(false);
     }
@@ -370,6 +433,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <p className="text-[10px] text-slate-500 mt-2">
             💡 Password for pre-seeded staff sign-in is: <code className="bg-slate-200 px-1 py-0.5 rounded font-mono">audit2026</code> (or sign up with that whitelisted email).
           </p>
+          <div className="mt-2.5 pt-2 border-t border-slate-200/70 flex items-center justify-between text-[11px] text-slate-500">
+            <span>Testing First-Time Admin Account registration?</span>
+            <button
+              type="button"
+              id="btn-reset-db"
+              onClick={handleResetDbForAdminTest}
+              className="text-amber-700 hover:text-amber-900 font-semibold underline hover:no-underline"
+            >
+              Reset to First-Time Setup
+            </button>
+          </div>
         </div>
 
       </div>

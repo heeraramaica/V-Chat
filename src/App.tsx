@@ -48,10 +48,14 @@ export default function App() {
     if (!currentUser) return;
     try {
       const res = await fetch('/api/tasks', {
-        headers: { 'x-user-id': currentUser.id }
+        headers: {
+          'x-user-id': currentUser.id,
+          'Accept': 'application/json'
+        }
       });
       if (res.ok) {
-        const data = await res.json();
+        const text = await res.text();
+        const data = text ? JSON.parse(text) : {};
         setTasks(data.tasks || []);
       }
     } catch (err) {
