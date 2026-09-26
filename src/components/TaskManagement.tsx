@@ -26,6 +26,8 @@ import {
   Briefcase
 } from 'lucide-react';
 import { Task, User, UserRole, TaskStatus, TaskPriority, PredefinedTaskTemplate } from '../types';
+import { apiFetch } from '../services/clientStorage';
+
 
 interface TaskManagementProps {
   currentUser: User;
@@ -86,7 +88,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
   useEffect(() => {
     async function loadInitialData() {
       try {
-        const res = await fetch('/api/predefined-tasks', {
+        const res = await apiFetch('/api/predefined-tasks', {
           headers: { 'Accept': 'application/json' }
         });
         if (res.ok) {
@@ -100,7 +102,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
 
       if (currentUser.isAdmin) {
         try {
-          const res = await fetch('/api/admin/employees', {
+          const res = await apiFetch('/api/admin/employees', {
             headers: {
               'x-user-id': currentUser.id,
               'Accept': 'application/json'
@@ -161,7 +163,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
     if (!taskTitle.trim() || !clientName.trim()) return;
 
     try {
-      const res = await fetch('/api/tasks', {
+      const res = await apiFetch('/api/tasks', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -201,7 +203,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
   // Update task status (Pending -> In Progress -> In Review -> Completed)
   const handleUpdateStatus = async (task: Task, newStatus: TaskStatus) => {
     try {
-      const res = await fetch(`/api/tasks/${task.id}`, {
+      const res = await apiFetch(`/api/tasks/${task.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -228,7 +230,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
     );
 
     try {
-      const res = await fetch(`/api/tasks/${task.id}`, {
+      const res = await apiFetch(`/api/tasks/${task.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -257,7 +259,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
     const reader = new FileReader();
     reader.onload = async () => {
       try {
-        const upRes = await fetch('/api/upload', {
+        const upRes = await apiFetch('/api/upload', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -282,7 +284,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
 
           const updatedAttachments = [...(selectedTask.attachments || []), newAttachment];
 
-          const putRes = await fetch(`/api/tasks/${selectedTask.id}`, {
+          const putRes = await apiFetch(`/api/tasks/${selectedTask.id}`, {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
@@ -321,7 +323,7 @@ export const TaskManagement: React.FC<TaskManagementProps> = ({
     const updatedComments = [...(selectedTask.comments || []), newComment];
 
     try {
-      const res = await fetch(`/api/tasks/${selectedTask.id}`, {
+      const res = await apiFetch(`/api/tasks/${selectedTask.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

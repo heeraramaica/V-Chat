@@ -18,6 +18,8 @@ import {
   FileText
 } from 'lucide-react';
 import { User } from '../types';
+import { apiFetch } from '../services/clientStorage';
+
 
 interface AdminDashboardProps {
   currentUser: User;
@@ -37,7 +39,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
   const fetchAnalytics = async () => {
     try {
-      const res = await fetch('/api/dashboard/analytics', {
+      const res = await apiFetch('/api/dashboard/analytics', {
         headers: {
           'x-user-id': currentUser.id,
           'Accept': 'application/json'
@@ -63,7 +65,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const handleSeedSampleTasks = async () => {
     setSeeding(true);
     try {
-      const res = await fetch('/api/admin/seed-sample-tasks', {
+      const res = await apiFetch('/api/tasks/seed-ca-samples', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

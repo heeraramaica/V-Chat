@@ -35,6 +35,8 @@ import {
 } from 'lucide-react';
 import { User, ChatGroup, ChatMessage, Task, UserRole } from '../types';
 import { VChatLogo } from './VChatLogo';
+import { apiFetch } from '../services/clientStorage';
+
 
 interface ChatViewProps {
   currentUser: User;
@@ -97,7 +99,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   // Fetch chats list
   const fetchChats = async () => {
     try {
-      const res = await fetch('/api/chats', {
+      const res = await apiFetch('/api/chats', {
         headers: {
           'x-user-id': currentUser.id,
           'Accept': 'application/json'
@@ -120,7 +122,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const fetchMessages = async (chatId: string) => {
     if (!chatId) return;
     try {
-      const res = await fetch(`/api/chats/${chatId}/messages`, {
+      const res = await apiFetch(`/api/chats/${chatId}/messages`, {
         headers: {
           'x-user-id': currentUser.id,
           'Accept': 'application/json'
@@ -164,7 +166,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const loadColleagues = async () => {
     setIsLoadingColleagues(true);
     try {
-      const res = await fetch('/api/colleagues', {
+      const res = await apiFetch('/api/colleagues', {
         headers: {
           'x-user-id': currentUser.id,
           'Accept': 'application/json'
@@ -187,7 +189,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
     if (!recipientId && !recipientEmail) return;
     setIsStartingChat(true);
     try {
-      const res = await fetch('/api/chats/direct', {
+      const res = await apiFetch('/api/chats/direct', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -230,7 +232,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   // Load employee list for creating groups
   const loadEmployees = async () => {
     try {
-      const res = await fetch('/api/admin/employees', {
+      const res = await apiFetch('/api/admin/employees', {
         headers: {
           'x-user-id': currentUser.id,
           'Accept': 'application/json'
@@ -251,7 +253,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
     if (!newGroupName.trim()) return;
 
     try {
-      const res = await fetch('/api/chats', {
+      const res = await apiFetch('/api/chats', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -323,7 +325,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
       // If attachment exists, upload first
       if (attachmentPreview) {
-        const upRes = await fetch('/api/upload', {
+        const upRes = await apiFetch('/api/upload', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -346,7 +348,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         }
       }
 
-      const res = await fetch(`/api/chats/${activeChatId}/messages`, {
+      const res = await apiFetch(`/api/chats/${activeChatId}/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -384,7 +386,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const handleShareTask = async (task: Task) => {
     if (!activeChatId) return;
     try {
-      const res = await fetch(`/api/chats/${activeChatId}/messages`, {
+      const res = await apiFetch(`/api/chats/${activeChatId}/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

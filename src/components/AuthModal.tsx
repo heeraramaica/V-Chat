@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import { User, UserRole } from '../types';
 import { VChatLogo } from './VChatLogo';
+import { apiFetch } from '../services/clientStorage';
+
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -48,7 +50,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   useEffect(() => {
     async function loadAuthStatus() {
       try {
-        const res = await fetch('/api/auth/status', {
+        const res = await apiFetch('/api/auth/status', {
           headers: { 'Accept': 'application/json' }
         });
         if (!res.ok) {
@@ -87,7 +89,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         ? { email, password, name, phone, role: isFirstUser ? 'Partner' : role }
         : { email, password };
 
-      const res = await fetch(endpoint, {
+      const res = await apiFetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -135,10 +137,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/auth/reset-demo-db', {
+      const res = await apiFetch('/api/auth/reset-demo-db', {
         method: 'POST',
         headers: { 'Accept': 'application/json' }
       });
+
       const rawText = await res.text();
       let data: any = {};
       if (rawText && rawText.trim()) {

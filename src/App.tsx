@@ -7,6 +7,8 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { EmployeeManagement } from './components/EmployeeManagement';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { User, Task } from './types';
+import { apiFetch } from './services/clientStorage';
+
 import { 
   Building2, 
   ShieldCheck, 
@@ -47,7 +49,7 @@ export default function App() {
   const fetchTasks = async () => {
     if (!currentUser) return;
     try {
-      const res = await fetch('/api/tasks', {
+      const res = await apiFetch('/api/tasks', {
         headers: {
           'x-user-id': currentUser.id,
           'Accept': 'application/json'

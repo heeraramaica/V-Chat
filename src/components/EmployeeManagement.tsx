@@ -16,6 +16,8 @@ import {
   UserCheck
 } from 'lucide-react';
 import { User, UserRole, AuthLog } from '../types';
+import { apiFetch } from '../services/clientStorage';
+
 
 interface EmployeeManagementProps {
   currentUser: User;
@@ -44,7 +46,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
 
   const fetchData = async () => {
     try {
-      const res = await fetch('/api/admin/employees', {
+      const res = await apiFetch('/api/admin/employees', {
         headers: {
           'x-user-id': currentUser.id,
           'Accept': 'application/json'
@@ -75,7 +77,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
     setIsSubmitting(true);
 
     try {
-      const res = await fetch('/api/admin/employees', {
+      const res = await apiFetch('/api/admin/employees', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -120,7 +122,7 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
     if (!window.confirm(`Are you sure you want to remove ${delEmail} from whitelisted staff?`)) return;
 
     try {
-      const res = await fetch(`/api/admin/employees/${encodeURIComponent(delEmail)}`, {
+      const res = await apiFetch(`/api/admin/employees/${encodeURIComponent(delEmail)}`, {
         method: 'DELETE',
         headers: {
           'x-user-id': currentUser.id,

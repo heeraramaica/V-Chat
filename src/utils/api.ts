@@ -1,3 +1,5 @@
+import { apiFetch } from '../services/clientStorage';
+
 /**
  * Safe API Fetch Utilities
  * Prevents "Unexpected end of JSON input" errors by safely inspecting response.ok
@@ -20,13 +22,14 @@ export async function safeFetch<T = any>(
   init?: RequestInit
 ): Promise<ApiResponse<T>> {
   try {
-    const res = await fetch(input, {
+    const res = await apiFetch(input, {
       ...init,
       headers: {
         'Accept': 'application/json',
         ...(init?.headers || {})
       }
     });
+
 
     // Safely read response as text first
     const rawText = await res.text();
