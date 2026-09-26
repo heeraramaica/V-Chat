@@ -1,0 +1,499 @@
+{
+  "users": [
+    {
+      "id": "usr-1789638613736-gxd42",
+      "name": "Heera Ram",
+      "email": "heeraram@varmaandvarma.com",
+      "password": "94145#Shree",
+      "role": "Partner",
+      "avatar": "https://api.dicebear.com/7.x/initials/svg?seed=Heera%20Ram",
+      "isAdmin": true,
+      "status": "active",
+      "createdAt": "2026-09-17T09:50:13.736Z",
+      "lastLoginAt": "2026-09-17T09:50:13.736Z"
+    }
+  ],
+  "allowedEmployees": [
+    {
+      "email": "rohit.manager@varmavarma.com",
+      "name": "Rohit Kulkarni",
+      "role": "Manager",
+      "phone": "+91 98201 44321",
+      "addedBy": "System Pre-seed",
+      "addedAt": "2026-09-17T09:14:46.969Z"
+    },
+    {
+      "email": "priya.article@varmavarma.com",
+      "name": "Priya Deshmukh",
+      "role": "Articles",
+      "phone": "+91 97654 88712",
+      "addedBy": "System Pre-seed",
+      "addedAt": "2026-09-17T09:14:46.969Z"
+    },
+    {
+      "email": "kunal.assistant@varmavarma.com",
+      "name": "Kunal Mehta",
+      "role": "Paid Assistant",
+      "phone": "+91 98333 11200",
+      "addedBy": "System Pre-seed",
+      "addedAt": "2026-09-17T09:14:46.969Z"
+    },
+    {
+      "email": "ananya.accountant@varmavarma.com",
+      "name": "Ananya Sharma",
+      "role": "Accountant",
+      "phone": "+91 98199 55432",
+      "addedBy": "System Pre-seed",
+      "addedAt": "2026-09-17T09:14:46.969Z"
+    }
+  ],
+  "authLogs": [
+    {
+      "id": "log-1789638613736-66rpt",
+      "userId": "usr-1789638613736-gxd42",
+      "email": "heeraram@varmaandvarma.com",
+      "event": "SIGNUP_ADMIN",
+      "role": "Partner",
+      "ip": "114.143.61.58, 169.254.169.126",
+      "timestamp": "2026-09-17T09:50:13.736Z",
+      "details": "Primary Admin/Partner successfully registered."
+    },
+    {
+      "id": "log-1789638593766-mmw7x",
+      "email": "heeraram@varmaandvarma.com",
+      "event": "LOGIN_FAILED",
+      "ip": "114.143.61.58, 169.254.169.126",
+      "timestamp": "2026-09-17T09:49:53.766Z",
+      "details": "Invalid password or unknown email ID"
+    },
+    {
+      "id": "log-1789638570380-esapa",
+      "email": "heeraram@varmaandvarma.com",
+      "event": "LOGIN_FAILED",
+      "ip": "114.143.61.58, 169.254.169.126",
+      "timestamp": "2026-09-17T09:49:30.380Z",
+      "details": "Invalid password or unknown email ID"
+    },
+    {
+      "id": "log-1789638562467-7z4cw",
+      "email": "heeraram@varmaandvarma.com",
+      "event": "LOGIN_FAILED",
+      "ip": "114.143.61.58, 169.254.169.126",
+      "timestamp": "2026-09-17T09:49:22.467Z",
+      "details": "Invalid password or unknown email ID"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "tsk-seed-1789707486611-4",
+      "title": "Form AOC-4 Financial Statements Filing on MCA V3",
+      "description": "Annual ROC filing of Balance Sheet, Profit & Loss, Board Report and CARO report.",
+      "category": "Corporate & MCA Law",
+      "clientName": "Godrej Infotech Solutions Private Limited",
+      "clientPAN_GSTIN": "27AABCG1234F1ZG",
+      "assignedToId": "ananya.accountant@varmavarma.com",
+      "assignedToName": "Ananya Sharma",
+      "assignedToEmail": "ananya.accountant@varmavarma.com",
+      "assignedToRole": "Accountant",
+      "assignedById": "usr-1789638613736-gxd42",
+      "assignedByName": "Heera Ram",
+      "dueDate": "2026-09-27",
+      "priority": "Medium",
+      "status": "Pending",
+      "instructions": "Check Director DIN status on MCA portal and ensure all notes to accounts are attached in searchable PDF format.",
+      "checklist": [
+        {
+          "id": "c1",
+          "text": "Collate signed Director report and Auditor report",
+          "completed": true
+        },
+        {
+          "id": "c2",
+          "text": "Draft form AOC-4 on MCA V3 portal",
+          "completed": false
+        },
+        {
+          "id": "c3",
+          "text": "Affix CA and Director digital signatures",
+          "completed": false
+        }
+      ],
+      "reminders": [],
+      "attachments": [],
+      "createdAt": "2026-09-18T04:58:06.611Z",
+      "updatedAt": "2026-09-18T04:58:06.611Z"
+    },
+    {
+      "id": "tsk-seed-1789707486611-3",
+      "title": "Bank Concurrent Audit - Stock & Book Debts Inspection",
+      "description": "Monthly physical stock inspection, drawing power calculation & DP register verification.",
+      "category": "Banking & Concurrent Audit",
+      "clientName": "State Bank of India (Nariman Point Large Corporate Branch)",
+      "clientPAN_GSTIN": "27AAACS0011H1Z5",
+      "assignedToId": "kunal.assistant@varmavarma.com",
+      "assignedToName": "Kunal Mehta",
+      "assignedToEmail": "kunal.assistant@varmavarma.com",
+      "assignedToRole": "Paid Assistant",
+      "assignedById": "usr-1789638613736-gxd42",
+      "assignedByName": "Heera Ram",
+      "dueDate": "2026-09-20",
+      "priority": "High",
+      "status": "In Review",
+      "instructions": "Check borrower godown inspection reports and verify insurance coverage adequacy with bank hypothecation clause.",
+      "checklist": [
+        {
+          "id": "c1",
+          "text": "Obtain monthly DP statements for top 20 borrowal accounts",
+          "completed": true
+        },
+        {
+          "id": "c2",
+          "text": "Verify ageing of book debts (exclude >90 days)",
+          "completed": true
+        },
+        {
+          "id": "c3",
+          "text": "Draft monthly audit memo for Bank AGM",
+          "completed": true
+        }
+      ],
+      "reminders": [],
+      "attachments": [],
+      "createdAt": "2026-09-18T04:58:06.611Z",
+      "updatedAt": "2026-09-18T04:58:06.611Z"
+    },
+    {
+      "id": "tsk-seed-1789707486611-2",
+      "title": "GSTR-3B Filing & 2B ITC Reconciliation",
+      "description": "Monthly GSTR-3B return filing, reconciliation with purchase ledger and tax payment challan.",
+      "category": "GST & Indirect Tax",
+      "clientName": "Reliance Retail Logistics Hub (Bhiwandi)",
+      "clientPAN_GSTIN": "27AABCR9876M1Z2",
+      "assignedToId": "priya.article@varmavarma.com",
+      "assignedToName": "Priya Deshmukh",
+      "assignedToEmail": "priya.article@varmavarma.com",
+      "assignedToRole": "Articles",
+      "assignedById": "usr-1789638613736-gxd42",
+      "assignedByName": "Heera Ram",
+      "dueDate": "2026-09-21",
+      "priority": "High",
+      "status": "Pending",
+      "instructions": "Do not claim blocked credit under Sec 17(5) for motor vehicles. Verify RCM liability on GTA freight bills.",
+      "checklist": [
+        {
+          "id": "c1",
+          "text": "Download 2B for current month",
+          "completed": true
+        },
+        {
+          "id": "c2",
+          "text": "Run reconciliation with Tally ERP purchase register",
+          "completed": false
+        },
+        {
+          "id": "c3",
+          "text": "Compute net cash liability after ITC utilization",
+          "completed": false
+        },
+        {
+          "id": "c4",
+          "text": "Send confirmation email to CFO before filing",
+          "completed": false
+        }
+      ],
+      "reminders": [],
+      "attachments": [],
+      "createdAt": "2026-09-18T04:58:06.611Z",
+      "updatedAt": "2026-09-18T04:58:06.611Z"
+    },
+    {
+      "id": "tsk-seed-1789707486611-1",
+      "title": "Statutory Tax Audit u/s 44AB & Form 3CD",
+      "description": "Comprehensive tax audit clause 1 to 44 verification, depreciation schedule & disallowances.",
+      "category": "Statutory Audit",
+      "clientName": "Tata Consumer Products Ltd (Mumbai Unit)",
+      "clientPAN_GSTIN": "27AAACT2345K1Z8",
+      "assignedToId": "rohit.manager@varmavarma.com",
+      "assignedToName": "Rohit Kulkarni",
+      "assignedToEmail": "rohit.manager@varmavarma.com",
+      "assignedToRole": "Manager",
+      "assignedById": "usr-1789638613736-gxd42",
+      "assignedByName": "Heera Ram",
+      "dueDate": "2026-09-23",
+      "priority": "Urgent",
+      "status": "In Progress",
+      "instructions": "Scrutinize Clause 21(d) cash payments above Rs 10,000 and match Clause 34 TDS with 26AS. Keep working paper file signed.",
+      "checklist": [
+        {
+          "id": "c1",
+          "text": "Obtain trial balance and audited balance sheet",
+          "completed": true
+        },
+        {
+          "id": "c2",
+          "text": "Verify clause 13 method of accounting",
+          "completed": true
+        },
+        {
+          "id": "c3",
+          "text": "Verify clause 21 disallowance u/s 40(a)(ia)",
+          "completed": false
+        },
+        {
+          "id": "c4",
+          "text": "Prepare draft Form 3CD for Partner signoff",
+          "completed": false
+        }
+      ],
+      "reminders": [
+        {
+          "id": "r1",
+          "datetime": "2026-09-22 10:00",
+          "note": "Draft review with partner",
+          "sent": false
+        }
+      ],
+      "attachments": [],
+      "createdAt": "2026-09-18T04:58:06.611Z",
+      "updatedAt": "2026-09-18T04:58:06.611Z"
+    }
+  ],
+  "predefinedTasks": [
+    {
+      "id": "pt-1",
+      "title": "GSTR-3B Monthly Return Filing",
+      "category": "GST & Indirect Tax",
+      "defaultPriority": "High",
+      "suggestedChecklist": [
+        "Download GSTR-2B from GST Portal",
+        "Reconcile Purchase Register with GSTR-2B Input Tax Credit",
+        "Identify Ineligible ITC (Section 17(5)) & Rule 42/43 Reversals",
+        "Compute Output Tax liability from Sales Register (GSTR-1 match)",
+        "Set-off ITC in electronic credit ledger & compute cash liability",
+        "Generate Challan PMT-06 and get client payment confirmation",
+        "File GSTR-3B via DSC/EVC and save Acknowledgement"
+      ],
+      "standardInstructions": "Ensure reconciliation with 2B is within 0% discrepancy. Do not claim blocked credits under Sec 17(5). Obtain client signoff on net cash outflow before filing.",
+      "statutoryDeadlineInfo": "20th of every month (for monthly filers)"
+    },
+    {
+      "id": "pt-2",
+      "title": "Statutory Tax Audit u/s 44AB (Form 3CD)",
+      "category": "Statutory Audit",
+      "defaultPriority": "Urgent",
+      "suggestedChecklist": [
+        "Verify Gross Turnover/Receipts exceeding prescribed threshold",
+        "Check Clause 13 - Method of accounting & ICDS compliance",
+        "Verify Clause 21 - Disallowance under 40(a)(ia) for TDS default",
+        "Check Clause 21(d) - Cash payments in excess of Rs 10,000 u/s 40A(3)",
+        "Review Clause 26 - Compliance with Sec 43B statutory dues payment",
+        "Examine Clause 34 - Compliance with TDS/TCS provisions and filing dates",
+        "Draft Audit Report in Form 3CA/3CB and attach Notes to Accounts"
+      ],
+      "standardInstructions": "Obtain Management Representation Letter (MRL) for cash transactions and inventory valuation. Cross-verify all TDS challans with TRACES portal.",
+      "statutoryDeadlineInfo": "30th September / 31st October of Assessment Year"
+    },
+    {
+      "id": "pt-3",
+      "title": "Income Tax Return Filing (Corporate / Firm / Individual)",
+      "category": "Income Tax Filing",
+      "defaultPriority": "High",
+      "suggestedChecklist": [
+        "Download AIS / TIS and Form 26AS from Income Tax Portal",
+        "Reconcile Books of Account with AIS / 26AS",
+        "Prepare Computation of Total Income with Depreciation Schedule",
+        "Verify 80C, 80D, 80G deductions with original receipts / certificates",
+        "Calculate Advance Tax liability and Interest u/s 234A, 234B, 234C",
+        "Validate JSON/XML schema on Income Tax e-filing utility",
+        "Upload ITR with Digital Signature (DSC) or Aadhaar OTP"
+      ],
+      "standardInstructions": "Ensure AIS reconciliation report is archived in working papers. Note down reasons for any AIS mismatch with client books.",
+      "statutoryDeadlineInfo": "31st July (Non-audit) / 31st October (Tax Audit)"
+    },
+    {
+      "id": "pt-4",
+      "title": "TDS / TCS Quarterly Return Filing (Form 24Q / 26Q / 27Q)",
+      "category": "TDS & TCS Compliances",
+      "defaultPriority": "Medium",
+      "suggestedChecklist": [
+        "Extract Salary & Vendor payment ledgers with TDS deduction codes",
+        "Reconcile BSR code, Challan Number, and deposit dates with TRACES",
+        "Verify PAN validity of all deductees (Higher deduction for non-PAN)",
+        "Run File Validation Utility (FVU) on RPU software",
+        "Submit Form 24Q/26Q on TIN-NSDL or Income Tax Portal",
+        "Download Form 16 / 16A certificates and dispatch to client"
+      ],
+      "standardInstructions": "Flag all late deposit interest u/s 201(1A) and late filing fees u/s 234E in advance to the client.",
+      "statutoryDeadlineInfo": "31st of month following end of quarter (Q1: July 31, Q2: Oct 31, Q3: Jan 31, Q4: May 31)"
+    },
+    {
+      "id": "pt-5",
+      "title": "ROC & MCA Annual Compliance (AOC-4 & MGT-7)",
+      "category": "Corporate & MCA Law",
+      "defaultPriority": "Medium",
+      "suggestedChecklist": [
+        "Review Board Report, Directors Report & Secretarial Audit Report",
+        "Prepare Financial Statements in XBRL / Non-XBRL format as applicable",
+        "Verify AGM Date and Board Meeting Resolutions",
+        "Draft Form AOC-4 (Financial Statements filing) with Notice & BS",
+        "Draft Form MGT-7 / MGT-7A (Annual Return) with Shareholding pattern",
+        "Verify DIR-3 KYC status of all active Directors on V3 Portal",
+        "Affix DSC of Director & Practicing Chartered Accountant"
+      ],
+      "standardInstructions": "Check for CSR expenditure disclosures under Sec 135 and CARO 2020 remarks before signing AOC-4.",
+      "statutoryDeadlineInfo": "AOC-4 within 30 days of AGM / MGT-7 within 60 days of AGM"
+    },
+    {
+      "id": "pt-6",
+      "title": "Bank Concurrent Audit / Stock Audit Verification",
+      "category": "Banking & Concurrent Audit",
+      "defaultPriority": "High",
+      "suggestedChecklist": [
+        "Verify Daily Cash Balance against ceiling limit",
+        "Check KYC compliance for all newly opened Current & Savings accounts",
+        "Verify loan sanction terms, pre-disbursement conditions and charge creation",
+        "Review Drawing Power (DP) calculation with monthly Stock Statements",
+        "Inspect SMA-0, SMA-1, SMA-2 accounts for early warning stress signals",
+        "Ensure proper valuation of hypothecated stocks and primary security",
+        "Submit Flash Report and Monthly Audit Certificate to Zonal Office"
+      ],
+      "standardInstructions": "Follow RBI master directions strictly. Report any revenue leakages or irregular overdrafts immediately in the interim memo.",
+      "statutoryDeadlineInfo": "Monthly submission to Bank Head Office by 10th"
+    },
+    {
+      "id": "pt-7",
+      "title": "GST Scrutiny & Notice Representation (ASMT-10 / DRC-01)",
+      "category": "Litigation & Notices",
+      "defaultPriority": "Urgent",
+      "suggestedChecklist": [
+        "Examine Notice clauses (ITC mismatch, Turnover discrepancy, RCM liability)",
+        "Prepare point-wise factual rebuttal and reconciliation statement",
+        "Collate relevant Tax Invoices, E-way bills, and Transport proof",
+        "Draft formal Reply in Form ASMT-11 with judicial precedents",
+        "Upload written submission with annexures on GST common portal",
+        "Attend Personal Hearing before the Proper Officer / Assistant Commissioner"
+      ],
+      "standardInstructions": "Coordinate directly with Partner before attending personal hearing. Keep chronological file ready.",
+      "statutoryDeadlineInfo": "Within 30 days from date of receipt of notice"
+    }
+  ],
+  "chats": [
+    {
+      "id": "chat-branch-general",
+      "name": "Varma & Varma - Mumbai Branch HQ",
+      "type": "group",
+      "participants": [
+        "all",
+        "usr-1789638613736-gxd42"
+      ],
+      "participantDetails": [],
+      "description": "Official WhatsApp-style branch group for Varma & Varma Mumbai. All team instructions, follow-ups, and firm updates.",
+      "createdBy": "system",
+      "createdAt": "2026-09-17T09:14:46.969Z",
+      "lastMessage": {
+        "content": "hi",
+        "timestamp": "2026-09-18T05:42:31.877Z",
+        "senderName": "Heera Ram",
+        "type": "text"
+      }
+    },
+    {
+      "id": "chat-audit-team",
+      "name": "Statutory & Tax Audit Wing",
+      "type": "group",
+      "participants": [
+        "all",
+        "usr-1789638613736-gxd42"
+      ],
+      "participantDetails": [],
+      "description": "Working group for Tax Audit 44AB, Company Audit CARO 2020, and bank audits.",
+      "createdBy": "system",
+      "createdAt": "2026-09-17T09:14:46.969Z",
+      "lastMessage": {
+        "content": "Please upload all 3CD draft annexures here before partner review.",
+        "timestamp": "2026-09-17T09:14:46.969Z",
+        "senderName": "Audit Desk",
+        "type": "text"
+      }
+    },
+    {
+      "id": "chat-gst-directtax",
+      "name": "GST & Direct Tax Compliance",
+      "type": "group",
+      "participants": [
+        "all",
+        "usr-1789638613736-gxd42"
+      ],
+      "participantDetails": [],
+      "description": "GSTR-3B, GSTR-1, Advance tax computation & ITR filings tracking.",
+      "createdBy": "system",
+      "createdAt": "2026-09-17T09:14:46.970Z",
+      "lastMessage": {
+        "content": "📌 Attached Task: \"Form AOC-4 Financial Statements Filing on MCA V3\" for Client Godrej Infotech Solutions Private Limited (Assigned to: Ananya Sharma)",
+        "timestamp": "2026-09-18T05:46:06.280Z",
+        "senderName": "Heera Ram",
+        "type": "task_alert"
+      }
+    }
+  ],
+  "messages": [
+    {
+      "id": "msg-seed-1",
+      "chatId": "chat-branch-general",
+      "senderId": "sys-admin",
+      "senderName": "Branch In-Charge (Admin)",
+      "senderRole": "Partner",
+      "content": "Good morning team! Welcome to the Varma & Varma Mumbai Branch internal portal. Please check your assigned tasks, update instructions, and post working papers directly in the respective chats.",
+      "type": "text",
+      "timestamp": "2026-09-17T04:14:46.970Z",
+      "readBy": [
+        "usr-1789638613736-gxd42"
+      ]
+    },
+    {
+      "id": "msg-seed-2",
+      "chatId": "chat-branch-general",
+      "senderId": "sys-admin",
+      "senderName": "Branch In-Charge (Admin)",
+      "senderRole": "Partner",
+      "content": "Reminder: All articles and assistants must log progress and mark pending checklist items daily before 6:30 PM.",
+      "type": "text",
+      "timestamp": "2026-09-17T07:14:46.970Z",
+      "readBy": [
+        "usr-1789638613736-gxd42"
+      ]
+    },
+    {
+      "id": "msg-1789710151877-xorap",
+      "chatId": "chat-branch-general",
+      "senderId": "usr-1789638613736-gxd42",
+      "senderName": "Heera Ram",
+      "senderRole": "Partner",
+      "content": "hi",
+      "type": "text",
+      "timestamp": "2026-09-18T05:42:31.877Z",
+      "readBy": [
+        "usr-1789638613736-gxd42"
+      ]
+    },
+    {
+      "id": "msg-1789710366280-s3s56",
+      "chatId": "chat-gst-directtax",
+      "senderId": "usr-1789638613736-gxd42",
+      "senderName": "Heera Ram",
+      "senderRole": "Partner",
+      "content": "📌 Attached Task: \"Form AOC-4 Financial Statements Filing on MCA V3\" for Client Godrej Infotech Solutions Private Limited (Assigned to: Ananya Sharma)",
+      "type": "task_alert",
+      "timestamp": "2026-09-18T05:46:06.280Z",
+      "readBy": [
+        "usr-1789638613736-gxd42"
+      ],
+      "taskRef": {
+        "taskId": "tsk-seed-1789707486611-4",
+        "title": "Form AOC-4 Financial Statements Filing on MCA V3",
+        "status": "Pending",
+        "dueDate": "2026-09-27"
+      }
+    }
+  ]
+}

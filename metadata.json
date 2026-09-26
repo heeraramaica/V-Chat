@@ -1,0 +1,6 @@
+{
+  "name": "V-Chat",
+  "description": "Internal communication, task allocation, WhatsApp-style group collaboration, and compliance tracking app for Varma & Varma Mumbai Branch Chartered Accountants.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

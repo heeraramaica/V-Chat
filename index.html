@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <script>
+      // Filter benign Vite development websocket connection logs in iframe preview
+      (function() {
+        const origError = console.error;
+        console.error = function(...args) {
+          if (args.length > 0 && typeof args[0] === 'string' && (args[0].includes('[vite] failed to connect to websocket') || args[0].includes('vite-pwa-plugin:dev-ready'))) {
+            return;
+          }
+          origError.apply(console, args);
+        };
+      })();
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>V-Chat - Varma & Varma Mumbai Branch</title>
+    <meta name="description" content="Internal communication, task allocation, WhatsApp-style group collaboration, and compliance tracking app for Varma & Varma Mumbai Branch Chartered Accountants." />
+    <meta property="og:title" content="V-Chat - Varma & Varma Mumbai Branch" />
+    <meta property="og:description" content="Internal communication, task allocation, WhatsApp-style group collaboration, and compliance tracking app for Varma & Varma Mumbai Branch Chartered Accountants." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="theme-color" content="#0F294A" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="V-Chat" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" href="/vchat_logo.png" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
