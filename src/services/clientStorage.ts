@@ -223,6 +223,14 @@ export const DEFAULT_ALLOWED_EMPLOYEES: AllowedEmployee[] = [
     addedAt: '2026-09-26T17:16:51.569Z'
   },
   {
+    email: 'heeraram.k@gmail.com',
+    name: 'Heera Ram (Partner)',
+    role: 'Partner',
+    phone: '+91 98200 11223',
+    addedBy: 'System Primary Admin',
+    addedAt: '2026-09-26T18:00:00.000Z'
+  },
+  {
     email: 'heeraramaica@gmail.com',
     name: 'Heeraram',
     role: 'Partner',
@@ -536,17 +544,22 @@ export async function handleClientApiRequest(
     });
   }
 
-  // 2. Auth status
+  // 2. Auth status (Cloud-authoritative across devices)
   if (path === '/api/auth/status') {
-    // Fast non-blocking sync with cloud users if local user list is empty
-    if (db.users.length === 0) {
-      try {
-        const cloudUsers = await getCloudUsers();
-        if (cloudUsers.length > 0) {
-          db.users = cloudUsers;
-          saveClientDb(db);
-        }
-      } catch {}
+    try {
+      const [cloudUsers, cloudAllowed] = await Promise.all([
+        getCloudUsers(),
+        getCloudAllowedEmployees()
+      ]);
+      if (cloudUsers && cloudUsers.length > 0) {
+        db.users = cloudUsers;
+      }
+      if (cloudAllowed && cloudAllowed.length > 0) {
+        db.allowedEmployees = cloudAllowed;
+      }
+      saveClientDb(db);
+    } catch (e) {
+      console.warn('[auth/status] Cloud sync notice:', e);
     }
 
     const totalUsers = db.users.length;
@@ -572,7 +585,7 @@ export async function handleClientApiRequest(
     });
   }
 
-  // 4. Sign up (Supports First-Time Admin & Whitelisted Employees with Cloud Sync)
+  // 4. Sign up (Cloud-Authoritative: Verifies global admin state and staff whitelist)
   if (path === '/api/auth/signup' && method === 'POST') {
     const { name, email, password, phone, role } = body || {};
 
@@ -582,7 +595,7 @@ export async function handleClientApiRequest(
 
     const cleanEmail = String(email).trim().toLowerCase();
 
-    // Check Local & Cloud for existing user
+    // Check Cloud & Local for existing user
     let existingUser = db.users.find(u => u.email.toLowerCase() === cleanEmail);
     if (!existingUser) {
       existingUser = await getCloudUserByEmail(cleanEmail);
@@ -592,50 +605,51 @@ export async function handleClientApiRequest(
       return jsonResponse({ error: 'An account with this email already exists. Please log in.' }, 400);
     }
 
+    // Refresh cloud users and allowed employees to ensure cross-device consistency
+    try {
+      const [cloudUsers, cloudAllowed] = await Promise.all([
+        getCloudUsers(),
+        getCloudAllowedEmployees()
+      ]);
+      if (cloudUsers && cloudUsers.length > 0) db.users = cloudUsers;
+      if (cloudAllowed && cloudAllowed.length > 0) db.allowedEmployees = cloudAllowed;
+    } catch {}
+
     const hasAdmin = db.users.some(u => u.isAdmin);
     const isFirstUser = db.users.length === 0 || !hasAdmin;
 
     // Verify employee whitelist if not first admin
-    if (!isFirstUser) {
-      let allowed = db.allowedEmployees.find(e => e.email.toLowerCase() === cleanEmail);
-      if (!allowed) {
-        // Quick check cloud allowed list
-        const cloudAllowed = await getCloudAllowedEmployees();
-        if (cloudAllowed.length > 0) {
-          db.allowedEmployees = cloudAllowed;
-          allowed = db.allowedEmployees.find(e => e.email.toLowerCase() === cleanEmail);
-        }
-      }
+    let matchedAllowed = db.allowedEmployees.find(e => e.email.toLowerCase() === cleanEmail);
+    if (!isFirstUser && !matchedAllowed) {
+      const logItem: AuthLog = {
+        id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        email: cleanEmail,
+        event: 'SIGNUP_BLOCKED_NOT_WHITELISTED',
+        ip: 'Client Browser',
+        timestamp: new Date().toISOString(),
+        details: `Attempted signup blocked: Email ${cleanEmail} is not authorized by Admin.`
+      };
+      db.authLogs.unshift(logItem);
+      saveClientDb(db);
+      saveCloudAuthLog(logItem).catch(() => {});
 
-      if (!allowed) {
-        const logItem: AuthLog = {
-          id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-          email: cleanEmail,
-          event: 'SIGNUP_BLOCKED_NOT_WHITELISTED',
-          ip: 'Client Browser',
-          timestamp: new Date().toISOString(),
-          details: `Attempted signup blocked: Email ${cleanEmail} is not authorized by Admin.`
-        };
-        db.authLogs.unshift(logItem);
-        saveClientDb(db);
-        saveCloudAuthLog(logItem).catch(() => {});
-
-        return jsonResponse({
-          error: 'Access Denied: Only employees whose email IDs have been registered by Varma & Varma Admin can sign up. Please contact branch administration.'
-        }, 403);
-      }
+      return jsonResponse({
+        error: `Access Denied: Email "${cleanEmail}" has not been whitelisted by the Admin yet. Please add this email in Employee Management first.`
+      }, 403);
     }
 
-    let userRole: UserRole = 'Partner';
+    let userRole: UserRole = 'Articles';
     let isAdmin = false;
 
     if (isFirstUser) {
       userRole = 'Partner';
       isAdmin = true;
+    } else if (matchedAllowed) {
+      userRole = matchedAllowed.role;
+      isAdmin = matchedAllowed.role === 'Partner';
     } else {
-      const allowed = db.allowedEmployees.find(e => e.email.toLowerCase() === cleanEmail);
-      userRole = allowed?.role || (role as UserRole) || 'Articles';
-      isAdmin = false;
+      userRole = (role as UserRole) || 'Articles';
+      isAdmin = userRole === 'Partner';
     }
 
     const newUser: StoredUser = {
@@ -644,7 +658,7 @@ export async function handleClientApiRequest(
       email: cleanEmail,
       password: String(password),
       role: userRole,
-      phone: phone ? String(phone).trim() : undefined,
+      phone: phone ? String(phone).trim() : matchedAllowed?.phone || undefined,
       avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`,
       isAdmin,
       status: 'active',
@@ -654,10 +668,14 @@ export async function handleClientApiRequest(
 
     db.users.push(newUser);
 
-    // Update allowed status if matching
-    db.allowedEmployees = db.allowedEmployees.map(e =>
-      e.email.toLowerCase() === cleanEmail ? { ...e, status: 'active' } : e
-    );
+    // Update allowed status in roster
+    if (matchedAllowed) {
+      matchedAllowed.status = 'active';
+      db.allowedEmployees = db.allowedEmployees.map(e =>
+        e.email.toLowerCase() === cleanEmail ? { ...e, status: 'active' } : e
+      );
+      await saveCloudAllowedEmployee({ ...matchedAllowed, status: 'active' });
+    }
 
     // Log auth event
     const authLogItem: AuthLog = {
@@ -668,7 +686,7 @@ export async function handleClientApiRequest(
       role: userRole,
       ip: 'Client Browser',
       timestamp: new Date().toISOString(),
-      details: `${isFirstUser ? 'Primary Admin/Partner' : 'Employee (' + userRole + ')'} successfully registered.`
+      details: `${isFirstUser ? 'Primary Admin/Partner' : 'Employee (' + userRole + ')'} successfully registered into company cloud workspace.`
     };
     db.authLogs.unshift(authLogItem);
 
@@ -682,9 +700,11 @@ export async function handleClientApiRequest(
 
     saveClientDb(db);
 
-    // Asynchronous cloud sync (non-blocking fallback)
-    saveCloudUser(newUser).catch(() => {});
-    saveCloudAuthLog(authLogItem).catch(() => {});
+    // Persist directly to Firebase Firestore
+    await Promise.all([
+      saveCloudUser(newUser),
+      saveCloudAuthLog(authLogItem)
+    ]);
 
     const { password: _, ...safeUser } = newUser;
     return jsonResponse({
@@ -1389,16 +1409,8 @@ export function initClientApi(): void {
     console.warn('[clientDb] Init error:', e);
   }
 
-  // Test Firestore connection & Seed defaults to Cloud
-  testFirestoreConnection().then(() => {
-    seedCloudDefaults(
-      DEFAULT_ALLOWED_EMPLOYEES,
-      DEFAULT_PREDEFINED_TASKS,
-      DEFAULT_CHATS,
-      DEFAULT_MESSAGES
-    ).catch(e => console.warn('[Firestore] Seed notice:', e));
-
-    // Subscribe to cloud updates to keep local db in sync across devices
+  // Start Firestore real-time cloud listeners immediately on startup
+  try {
     subscribeToCloudUsers((cloudUsers) => {
       const db = getClientDb();
       if (cloudUsers && cloudUsers.length > 0) {
@@ -1439,6 +1451,18 @@ export function initClientApi(): void {
       db.allowedEmployees = employees;
       saveClientDb(db);
     });
+  } catch (err) {
+    console.warn('[Firestore] Real-time subscription init notice:', err);
+  }
+
+  // Ensure cloud defaults (branch chat, whitelist roster, tasks) are seeded
+  testFirestoreConnection().then(() => {
+    seedCloudDefaults(
+      DEFAULT_ALLOWED_EMPLOYEES,
+      DEFAULT_PREDEFINED_TASKS,
+      DEFAULT_CHATS,
+      DEFAULT_MESSAGES
+    ).catch(e => console.warn('[Firestore] Seed notice:', e));
   }).catch(err => {
     console.warn('[Firestore] Connection setup error:', err);
   });

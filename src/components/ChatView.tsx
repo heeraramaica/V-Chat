@@ -146,8 +146,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
     // Subscribe to real-time chat updates across devices
     const unsubChats = subscribeToCloudChats((cloudChats) => {
       if (cloudChats && cloudChats.length > 0) {
+        const userEmail = currentUser.email?.toLowerCase();
         const userChats = cloudChats.filter(c =>
-          c.participants.includes('all') || c.participants.includes(currentUser.id)
+          c.participants.includes('all') ||
+          c.participants.includes(currentUser.id) ||
+          (userEmail && c.participants.some(p => String(p).toLowerCase() === userEmail))
         );
         setChats(userChats);
         if (!activeChatId && userChats.length > 0) {

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { User, UserRole, AuthLog } from '../types';
 import { apiFetch } from '../services/clientStorage';
+import { subscribeToCloudAllowedEmployees, subscribeToCloudUsers } from '../services/firebase';
 
 
 interface EmployeeManagementProps {
@@ -68,6 +69,25 @@ export const EmployeeManagement: React.FC<EmployeeManagementProps> = ({
 
   useEffect(() => {
     fetchData();
+
+    // Real-time synchronization of whitelist roster across all devices
+    const unsubAllowed = subscribeToCloudAllowedEmployees((cloudAllowed) => {
+      if (cloudAllowed && cloudAllowed.length > 0) {
+        setAllowedEmployees(cloudAllowed);
+      }
+    });
+
+    // Real-time synchronization of registered users across all devices
+    const unsubUsers = subscribeToCloudUsers((cloudUsers) => {
+      if (cloudUsers && cloudUsers.length > 0) {
+        setRegisteredUsers(cloudUsers);
+      }
+    });
+
+    return () => {
+      unsubAllowed();
+      unsubUsers();
+    };
   }, [currentUser.id]);
 
   const handleAddEmployee = async (e: React.FormEvent) => {

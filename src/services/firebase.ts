@@ -63,7 +63,7 @@ export const app: FirebaseApp = getApps().length === 0
   ? initializeApp(FIREBASE_CONFIG)
   : getApp();
 
-// Connect to provisioned Firestore database
+// Connect to provisioned Firestore database with auto long-polling and ignore undefined settings
 // CRITICAL: The app will break without passing FIREBASE_CONFIG.firestoreDatabaseId
 export const db: Firestore = (() => {
   try {
@@ -78,8 +78,9 @@ export const db: Firestore = (() => {
 
 /**
  * Utility to ensure network calls never hang the UI if offline, connecting, or on slow networks.
+ * Uses a realistic 6-second timeout for mobile cell connections.
  */
-export function withTimeout<T>(promise: Promise<T>, timeoutMs = 2000, fallback: T): Promise<T> {
+export function withTimeout<T>(promise: Promise<T>, timeoutMs = 6000, fallback: T): Promise<T> {
   let timer: any;
   const timeoutPromise = new Promise<T>((resolve) => {
     timer = setTimeout(() => resolve(fallback), timeoutMs);
@@ -134,7 +135,7 @@ export async function testFirestoreConnection(): Promise<boolean> {
       lastPing: new Date().toISOString() 
     }), { merge: true }).then(() => true);
     
-    return await withTimeout(writePromise, 2500, false);
+    return await withTimeout(writePromise, 5000, false);
   } catch (error: any) {
     console.info('[Firestore] Operating with offline-first client storage.');
     return false;
@@ -152,32 +153,61 @@ export interface StoredCloudUser extends User {
 export async function getCloudUsers(): Promise<StoredCloudUser[]> {
   const fetchPromise = (async () => {
     const snap = await getDocs(collection(db, 'users'));
-    return snap.docs.map(d => d.data() as StoredCloudUser);
+    return snap.docs
+      .map(d => ({ ...d.data(), id: d.data().id || d.id } as StoredCloudUser))
+      .filter(u => !!u.email);
   })();
-  return withTimeout(fetchPromise, 2000, []);
+  return withTimeout(fetchPromise, 6000, []);
 }
 
 export async function getCloudUserByEmail(email: string): Promise<StoredCloudUser | null> {
   const cleanEmail = email.trim().toLowerCase();
   const fetchPromise = (async () => {
+    // 1. Direct query
     const q = query(collection(db, 'users'), where('email', '==', cleanEmail));
     const snap = await getDocs(q);
     if (!snap.empty) {
-      return snap.docs[0].data() as StoredCloudUser;
+      const d = snap.docs[0];
+      return { ...d.data(), id: d.data().id || d.id } as StoredCloudUser;
     }
+
+    // 2. Query by sanitized email doc ID
+    const docId = cleanEmail.replace(/[^a-zA-Z0-9]/g, '_');
+    const directDoc = await getDoc(doc(db, 'users', docId));
+    if (directDoc.exists()) {
+      const d = directDoc.data();
+      return { ...d, id: d.id || directDoc.id } as StoredCloudUser;
+    }
+
+    // 3. Fallback scan of all users
+    const allSnap = await getDocs(collection(db, 'users'));
+    const found = allSnap.docs.find(d => {
+      const data = d.data();
+      return data.email && data.email.toLowerCase() === cleanEmail;
+    });
+    if (found) {
+      return { ...found.data(), id: found.data().id || found.id } as StoredCloudUser;
+    }
+
     return null;
   })();
-  return withTimeout(fetchPromise, 2000, null);
+  return withTimeout(fetchPromise, 6000, null);
 }
 
 export async function saveCloudUser(user: StoredCloudUser): Promise<void> {
   try {
     const safeData = sanitizeForFirestore({
       ...user,
+      email: user.email.toLowerCase(),
       updatedAt: new Date().toISOString()
     });
+    // Write by user.id
     const writePromise = setDoc(doc(db, 'users', user.id), safeData, { merge: true });
-    await withTimeout(writePromise, 2000, undefined);
+    // Also write an email-indexed pointer for instant lookups
+    const emailDocId = user.email.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
+    const emailIndexPromise = setDoc(doc(db, 'users', emailDocId), safeData, { merge: true });
+
+    await withTimeout(Promise.all([writePromise, emailIndexPromise]), 6000, undefined);
   } catch (err) {
     console.warn('[Firestore] Notice on saving user to cloud:', err);
   }
@@ -185,7 +215,18 @@ export async function saveCloudUser(user: StoredCloudUser): Promise<void> {
 
 export function subscribeToCloudUsers(callback: (users: StoredCloudUser[]) => void): Unsubscribe {
   return onSnapshot(collection(db, 'users'), (snap) => {
-    const list: StoredCloudUser[] = snap.docs.map(d => d.data() as StoredCloudUser);
+    const seenEmails = new Set<string>();
+    const list: StoredCloudUser[] = [];
+    snap.docs.forEach(d => {
+      const data = d.data() as StoredCloudUser;
+      if (data.email) {
+        const lower = data.email.toLowerCase();
+        if (!seenEmails.has(lower)) {
+          seenEmails.add(lower);
+          list.push({ ...data, id: data.id || d.id });
+        }
+      }
+    });
     callback(list);
   }, (err) => {
     console.warn('[Firestore] Users subscription notice:', err);
@@ -199,17 +240,20 @@ export function subscribeToCloudUsers(callback: (users: StoredCloudUser[]) => vo
 export async function getCloudAllowedEmployees(): Promise<AllowedEmployee[]> {
   const fetchPromise = (async () => {
     const snap = await getDocs(collection(db, 'allowedEmployees'));
-    return snap.docs.map(d => d.data() as AllowedEmployee);
+    return snap.docs.map(d => d.data() as AllowedEmployee).filter(e => !!e.email);
   })();
-  return withTimeout(fetchPromise, 2000, []);
+  return withTimeout(fetchPromise, 6000, []);
 }
 
 export async function saveCloudAllowedEmployee(emp: AllowedEmployee): Promise<void> {
   try {
     const docId = emp.email.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
-    const safeData = sanitizeForFirestore(emp);
+    const safeData = sanitizeForFirestore({
+      ...emp,
+      email: emp.email.toLowerCase()
+    });
     const writePromise = setDoc(doc(db, 'allowedEmployees', docId), safeData, { merge: true });
-    await withTimeout(writePromise, 2000, undefined);
+    await withTimeout(writePromise, 6000, undefined);
   } catch (err) {
     console.warn('[Firestore] Notice saving allowed employee:', err);
   }
@@ -219,7 +263,7 @@ export async function removeCloudAllowedEmployee(email: string): Promise<void> {
   try {
     const docId = email.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
     const deletePromise = deleteDoc(doc(db, 'allowedEmployees', docId));
-    await withTimeout(deletePromise, 2000, undefined);
+    await withTimeout(deletePromise, 6000, undefined);
   } catch (err) {
     console.warn('[Firestore] Notice removing allowed employee:', err);
   }
@@ -227,7 +271,7 @@ export async function removeCloudAllowedEmployee(email: string): Promise<void> {
 
 export function subscribeToCloudAllowedEmployees(callback: (list: AllowedEmployee[]) => void): Unsubscribe {
   return onSnapshot(collection(db, 'allowedEmployees'), (snap) => {
-    const list = snap.docs.map(d => d.data() as AllowedEmployee);
+    const list = snap.docs.map(d => d.data() as AllowedEmployee).filter(e => !!e.email);
     callback(list);
   }, (err) => {
     console.warn('[Firestore] AllowedEmployees subscription notice:', err);
@@ -243,14 +287,14 @@ export async function getCloudTasks(): Promise<Task[]> {
     const snap = await getDocs(collection(db, 'tasks'));
     return snap.docs.map(d => d.data() as Task);
   })();
-  return withTimeout(fetchPromise, 2000, []);
+  return withTimeout(fetchPromise, 6000, []);
 }
 
 export async function saveCloudTask(task: Task): Promise<void> {
   try {
     const safeTask = sanitizeForFirestore(task);
     const writePromise = setDoc(doc(db, 'tasks', task.id), safeTask, { merge: true });
-    await withTimeout(writePromise, 2000, undefined);
+    await withTimeout(writePromise, 6000, undefined);
   } catch (err) {
     console.warn('[Firestore] Notice saving task:', err);
   }
@@ -263,7 +307,7 @@ export async function updateCloudTask(taskId: string, data: Partial<Task>): Prom
       updatedAt: new Date().toISOString()
     });
     const writePromise = updateDoc(doc(db, 'tasks', taskId), safeData);
-    await withTimeout(writePromise, 2000, undefined);
+    await withTimeout(writePromise, 6000, undefined);
   } catch (err) {
     console.warn('[Firestore] Notice updating task:', err);
   }
@@ -272,7 +316,7 @@ export async function updateCloudTask(taskId: string, data: Partial<Task>): Prom
 export async function deleteCloudTask(taskId: string): Promise<void> {
   try {
     const deletePromise = deleteDoc(doc(db, 'tasks', taskId));
-    await withTimeout(deletePromise, 2000, undefined);
+    await withTimeout(deletePromise, 6000, undefined);
   } catch (err) {
     console.warn('[Firestore] Notice deleting task:', err);
   }
@@ -297,14 +341,14 @@ export async function getCloudChats(): Promise<ChatGroup[]> {
     const snap = await getDocs(collection(db, 'chats'));
     return snap.docs.map(d => d.data() as ChatGroup);
   })();
-  return withTimeout(fetchPromise, 2000, []);
+  return withTimeout(fetchPromise, 6000, []);
 }
 
 export async function saveCloudChat(chat: ChatGroup): Promise<void> {
   try {
     const safeChat = sanitizeForFirestore(chat);
     const writePromise = setDoc(doc(db, 'chats', chat.id), safeChat, { merge: true });
-    await withTimeout(writePromise, 2000, undefined);
+    await withTimeout(writePromise, 6000, undefined);
   } catch (err) {
     console.warn('[Firestore] Notice saving chat:', err);
   }
@@ -332,7 +376,7 @@ export async function getCloudMessages(chatId: string): Promise<ChatMessage[]> {
     msgs.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
     return msgs;
   })();
-  return withTimeout(fetchPromise, 2000, []);
+  return withTimeout(fetchPromise, 6000, []);
 }
 
 export async function saveCloudMessage(message: ChatMessage): Promise<void> {
@@ -349,7 +393,7 @@ export async function saveCloudMessage(message: ChatMessage): Promise<void> {
     });
 
     const chatWrite = setDoc(chatRef, { lastMessage: lastMessagePayload }, { merge: true });
-    await withTimeout(Promise.all([msgWrite, chatWrite]), 2000, undefined);
+    await withTimeout(Promise.all([msgWrite, chatWrite]), 6000, undefined);
   } catch (err) {
     console.warn('[Firestore] Notice saving message:', err);
   }
@@ -378,7 +422,7 @@ export async function saveCloudAuthLog(log: AuthLog): Promise<void> {
   try {
     const safeLog = sanitizeForFirestore(log);
     const writePromise = setDoc(doc(db, 'authLogs', log.id), safeLog);
-    await withTimeout(writePromise, 2000, undefined);
+    await withTimeout(writePromise, 6000, undefined);
   } catch (err) {
     console.warn('[Firestore] Notice saving auth log:', err);
   }
@@ -391,7 +435,7 @@ export async function getCloudAuthLogs(): Promise<AuthLog[]> {
     list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
     return list;
   })();
-  return withTimeout(fetchPromise, 2000, []);
+  return withTimeout(fetchPromise, 6000, []);
 }
 
 // -------------------------------------------------------------
@@ -406,35 +450,41 @@ export async function seedCloudDefaults(
   defaultMessages: ChatMessage[]
 ): Promise<void> {
   try {
-    // Non-blocking background seed
     const seedOp = async () => {
+      // 1. Branch general group chat
       const chatDoc = await getDoc(doc(db, 'chats', 'chat-branch-general'));
       if (!chatDoc.exists()) {
+        const writes: Promise<any>[] = [];
         for (const chat of defaultChats) {
-          await setDoc(doc(db, 'chats', chat.id), sanitizeForFirestore(chat), { merge: true });
+          writes.push(setDoc(doc(db, 'chats', chat.id), sanitizeForFirestore(chat), { merge: true }));
         }
         for (const msg of defaultMessages) {
-          await setDoc(doc(db, 'messages', msg.id), sanitizeForFirestore(msg), { merge: true });
+          writes.push(setDoc(doc(db, 'messages', msg.id), sanitizeForFirestore(msg), { merge: true }));
         }
+        await Promise.all(writes);
       }
 
+      // 2. Allowed employees roster
       const empSnap = await getDocs(collection(db, 'allowedEmployees'));
       if (empSnap.empty) {
-        for (const emp of defaultEmployees) {
+        const empWrites = defaultEmployees.map(emp => {
           const docId = emp.email.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
-          await setDoc(doc(db, 'allowedEmployees', docId), sanitizeForFirestore(emp), { merge: true });
-        }
+          return setDoc(doc(db, 'allowedEmployees', docId), sanitizeForFirestore(emp), { merge: true });
+        });
+        await Promise.all(empWrites);
       }
 
+      // 3. Predefined tasks
       const preSnap = await getDocs(collection(db, 'predefinedTasks'));
       if (preSnap.empty) {
-        for (const pt of defaultPredefinedTasks) {
-          await setDoc(doc(db, 'predefinedTasks', pt.id), sanitizeForFirestore(pt), { merge: true });
-        }
+        const preWrites = defaultPredefinedTasks.map(pt => {
+          return setDoc(doc(db, 'predefinedTasks', pt.id), sanitizeForFirestore(pt), { merge: true });
+        });
+        await Promise.all(preWrites);
       }
     };
 
-    await withTimeout(seedOp(), 3000, undefined);
+    await withTimeout(seedOp(), 8000, undefined);
   } catch (err) {
     console.info('[Firestore] Background cloud seed notice:', err);
   }

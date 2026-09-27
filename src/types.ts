@@ -26,6 +26,7 @@ export interface AllowedEmployee {
   phone?: string;
   addedBy: string;
   addedAt: string;
+  status?: 'active' | 'pending' | 'invited';
 }
 
 export interface AuthLog {
