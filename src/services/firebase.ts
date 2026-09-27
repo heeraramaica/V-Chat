@@ -11,8 +11,8 @@
 
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import {
-  getFirestore,
   initializeFirestore,
+  getFirestore,
   Firestore,
   collection,
   doc,
@@ -23,10 +23,9 @@ import {
   deleteDoc,
   query,
   where,
-  orderBy,
   onSnapshot,
   Unsubscribe,
-  serverTimestamp
+  setLogLevel
 } from 'firebase/firestore';
 import firebaseConfig from '../../firebase-applet-config.json';
 import {
@@ -36,24 +35,69 @@ import {
   Task,
   PredefinedTaskTemplate,
   ChatGroup,
-  ChatMessage,
-  UserRole
+  ChatMessage
 } from '../types';
+
+// Silence transient connection noise in sandboxed preview environments
+try {
+  setLogLevel('silent');
+} catch {
+  // ignore
+}
 
 // Initialize Firebase App
 export const app: FirebaseApp = getApps().length === 0
   ? initializeApp(firebaseConfig)
   : getApp();
 
-// Connect to provisioned Firestore database
+// Connect to provisioned Firestore database with force long-polling and ignore undefined settings
+// This avoids WebChannel stream handshake failures in iframe/proxy environments.
 // CRITICAL: The app will break without passing firebaseConfig.firestoreDatabaseId
-export const db: Firestore = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const db: Firestore = (() => {
+  try {
+    return initializeFirestore(app, {
+      experimentalForceLongPolling: true,
+      ignoreUndefinedProperties: true
+    }, firebaseConfig.firestoreDatabaseId);
+  } catch (e) {
+    return getFirestore(app, firebaseConfig.firestoreDatabaseId);
+  }
+})();
+
+/**
+ * Recursively remove undefined fields from objects/arrays to prevent Firestore
+ * "Function setDoc() called with invalid data. Unsupported field value: undefined" errors.
+ */
+export function sanitizeForFirestore<T>(data: T): T {
+  if (data === null || data === undefined) {
+    return data;
+  }
+  if (Array.isArray(data)) {
+    return data
+      .filter((item) => item !== undefined)
+      .map((item) => sanitizeForFirestore(item)) as unknown as T;
+  }
+  if (typeof data === 'object') {
+    // Preserve instances of Date or similar non-plain objects
+    if (data instanceof Date) {
+      return data;
+    }
+    const sanitized: Record<string, any> = {};
+    for (const [key, value] of Object.entries(data as Record<string, any>)) {
+      if (value !== undefined) {
+        sanitized[key] = sanitizeForFirestore(value);
+      }
+    }
+    return sanitized as unknown as T;
+  }
+  return data;
+}
 
 // Test Firestore connection on boot
 export async function testFirestoreConnection(): Promise<boolean> {
   try {
     const testRef = doc(db, 'system', 'connection');
-    await setDoc(testRef, { connected: true, lastPing: new Date().toISOString() }, { merge: true });
+    await setDoc(testRef, sanitizeForFirestore({ connected: true, lastPing: new Date().toISOString() }), { merge: true });
     console.log('[Firestore] Connected to Cloud Firestore database:', firebaseConfig.firestoreDatabaseId);
     return true;
   } catch (error: any) {
@@ -101,10 +145,11 @@ export async function getCloudUserByEmail(email: string): Promise<StoredCloudUse
 
 export async function saveCloudUser(user: StoredCloudUser): Promise<void> {
   try {
-    await setDoc(doc(db, 'users', user.id), {
+    const safeData = sanitizeForFirestore({
       ...user,
       updatedAt: new Date().toISOString()
-    }, { merge: true });
+    });
+    await setDoc(doc(db, 'users', user.id), safeData, { merge: true });
   } catch (err) {
     console.error('[Firestore] Error saving user:', err);
   }
@@ -139,7 +184,8 @@ export async function getCloudAllowedEmployees(): Promise<AllowedEmployee[]> {
 export async function saveCloudAllowedEmployee(emp: AllowedEmployee): Promise<void> {
   try {
     const docId = emp.email.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
-    await setDoc(doc(db, 'allowedEmployees', docId), emp, { merge: true });
+    const safeData = sanitizeForFirestore(emp);
+    await setDoc(doc(db, 'allowedEmployees', docId), safeData, { merge: true });
   } catch (err) {
     console.error('[Firestore] Error saving allowed employee:', err);
   }
@@ -179,7 +225,8 @@ export async function getCloudTasks(): Promise<Task[]> {
 
 export async function saveCloudTask(task: Task): Promise<void> {
   try {
-    await setDoc(doc(db, 'tasks', task.id), task, { merge: true });
+    const safeTask = sanitizeForFirestore(task);
+    await setDoc(doc(db, 'tasks', task.id), safeTask, { merge: true });
   } catch (err) {
     console.error('[Firestore] Error saving task:', err);
   }
@@ -187,10 +234,11 @@ export async function saveCloudTask(task: Task): Promise<void> {
 
 export async function updateCloudTask(taskId: string, data: Partial<Task>): Promise<void> {
   try {
-    await updateDoc(doc(db, 'tasks', taskId), {
+    const safeData = sanitizeForFirestore({
       ...data,
       updatedAt: new Date().toISOString()
     });
+    await updateDoc(doc(db, 'tasks', taskId), safeData);
   } catch (err) {
     console.error('[Firestore] Error updating task:', err);
   }
@@ -231,7 +279,8 @@ export async function getCloudChats(): Promise<ChatGroup[]> {
 
 export async function saveCloudChat(chat: ChatGroup): Promise<void> {
   try {
-    await setDoc(doc(db, 'chats', chat.id), chat, { merge: true });
+    const safeChat = sanitizeForFirestore(chat);
+    await setDoc(doc(db, 'chats', chat.id), safeChat, { merge: true });
   } catch (err) {
     console.error('[Firestore] Error saving chat:', err);
   }
@@ -267,18 +316,26 @@ export async function getCloudMessages(chatId: string): Promise<ChatMessage[]> {
 
 export async function saveCloudMessage(message: ChatMessage): Promise<void> {
   try {
-    await setDoc(doc(db, 'messages', message.id), message, { merge: true });
+    const safeMessage = sanitizeForFirestore(message);
+    await setDoc(doc(db, 'messages', message.id), safeMessage, { merge: true });
 
     // Update parent chat's lastMessage
     const chatRef = doc(db, 'chats', message.chatId);
-    await updateDoc(chatRef, {
-      lastMessage: {
-        content: message.content || (message.mediaName ? `Sent file: ${message.mediaName}` : 'Sent an attachment'),
-        timestamp: message.timestamp,
-        senderName: message.senderName,
-        type: message.type
-      }
+    const lastMessagePayload = sanitizeForFirestore({
+      content: message.content || (message.mediaName ? `Sent file: ${message.mediaName}` : 'Sent an attachment'),
+      timestamp: message.timestamp,
+      senderName: message.senderName,
+      type: message.type
     });
+
+    try {
+      await updateDoc(chatRef, {
+        lastMessage: lastMessagePayload
+      });
+    } catch {
+      // In case chat doc does not exist yet
+      await setDoc(chatRef, { lastMessage: lastMessagePayload }, { merge: true });
+    }
   } catch (err) {
     console.error('[Firestore] Error saving message:', err);
   }
@@ -305,7 +362,8 @@ export function subscribeToCloudMessages(chatId: string, callback: (msgs: ChatMe
 
 export async function saveCloudAuthLog(log: AuthLog): Promise<void> {
   try {
-    await setDoc(doc(db, 'authLogs', log.id), log);
+    const safeLog = sanitizeForFirestore(log);
+    await setDoc(doc(db, 'authLogs', log.id), safeLog);
   } catch (err) {
     console.error('[Firestore] Error saving auth log:', err);
   }
@@ -340,10 +398,10 @@ export async function seedCloudDefaults(
     if (!chatDoc.exists()) {
       console.log('[Firestore] Seeding initial branch group chat to cloud...');
       for (const chat of defaultChats) {
-        await setDoc(doc(db, 'chats', chat.id), chat);
+        await setDoc(doc(db, 'chats', chat.id), sanitizeForFirestore(chat));
       }
       for (const msg of defaultMessages) {
-        await setDoc(doc(db, 'messages', msg.id), msg);
+        await setDoc(doc(db, 'messages', msg.id), sanitizeForFirestore(msg));
       }
     }
 
@@ -353,7 +411,7 @@ export async function seedCloudDefaults(
       console.log('[Firestore] Seeding initial whitelisted staff roster to cloud...');
       for (const emp of defaultEmployees) {
         const docId = emp.email.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
-        await setDoc(doc(db, 'allowedEmployees', docId), emp);
+        await setDoc(doc(db, 'allowedEmployees', docId), sanitizeForFirestore(emp));
       }
     }
 
@@ -362,7 +420,7 @@ export async function seedCloudDefaults(
     if (preSnap.empty) {
       console.log('[Firestore] Seeding statutory CA task templates to cloud...');
       for (const pt of defaultPredefinedTasks) {
-        await setDoc(doc(db, 'predefinedTasks', pt.id), pt);
+        await setDoc(doc(db, 'predefinedTasks', pt.id), sanitizeForFirestore(pt));
       }
     }
   } catch (err) {

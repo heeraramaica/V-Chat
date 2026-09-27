@@ -1070,10 +1070,10 @@ export async function handleClientApiRequest(
         senderRole: sender.role,
         content: content || '',
         type: type || 'text',
-        taskRef,
-        mediaUrl,
-        mediaName,
-        mediaSize,
+        ...(taskRef ? { taskRef } : {}),
+        ...(mediaUrl ? { mediaUrl } : {}),
+        ...(mediaName ? { mediaName } : {}),
+        ...(mediaSize !== undefined ? { mediaSize } : {}),
         timestamp: new Date().toISOString(),
         readBy: [sender.id]
       };
